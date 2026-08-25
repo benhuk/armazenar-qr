@@ -41,15 +41,72 @@ class _ScannerScreenState extends State<ScannerScreen> {
         const SnackBar(content: Text('Código não encontrado.')),
       );
     } else {
-      // TODO: abrir um modal pra confirmar a quantidade (padrão 1,
-      // editável) antes de chamar:
-      // db.registrarMovimentacao(produtoId: produto.id, tipo: 'saida', quantidade: n);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Produto: ${produto.nome}')),
-      );
+      final quantidade = await _perguntarQuantidade(produto);
+      if (quantidade != null && mounted) {
+        await _darBaixa(db, codigo, quantidade);
+      }
     }
 
-    setState(() => _processando = false);
+    if (mounted) setState(() => _processando = false);
+  }
+
+  /// Modal de confirmação: mostra o produto e o estoque atual, e deixa ajustar
+  /// a quantidade. Padrão 1, que é o caso comum de bipar item a item.
+  Future<int?> _perguntarQuantidade(Produto produto) {
+    final controller = TextEditingController(text: '1');
+    return showDialog<int>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(produto.nome),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Em estoque: ${produto.quantidadeAtual} ${produto.unidade}'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Dar baixa de'),
+              onSubmitted: (v) =>
+                  Navigator.pop(dialogContext, int.tryParse(v)),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(
+              dialogContext,
+              int.tryParse(controller.text),
+            ),
+            child: const Text('Confirmar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _darBaixa(AppDatabase db, String codigo, int quantidade) async {
+    final mensagem = await () async {
+      try {
+        final atualizado = await db.darBaixaPorCodigo(codigo, quantidade);
+        return 'Baixa de $quantidade em ${atualizado.nome}. '
+            'Restam ${atualizado.quantidadeAtual} ${atualizado.unidade}.';
+      } on MovimentacaoInvalida catch (e) {
+        return e.motivo;
+      } on VinculoInvalido catch (e) {
+        return e.motivo;
+      }
+    }();
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(mensagem)));
   }
 
   @override

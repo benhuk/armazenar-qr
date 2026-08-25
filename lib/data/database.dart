@@ -280,7 +280,19 @@ class AppDatabase extends _$AppDatabase {
     int quantidade, {
     String? observacao,
   }) async {
-    throw UnimplementedError('darBaixaPorCodigo');
+    final produto = await buscarProdutoPorCodigo(codigo);
+    if (produto == null) {
+      throw VinculoInvalido('Código $codigo não existe');
+    }
+
+    await registrarMovimentacao(
+      produtoId: produto.id,
+      tipo: 'saida',
+      quantidade: quantidade,
+      observacao: observacao,
+    );
+
+    return (select(produtos)..where((p) => p.id.equals(produto.id))).getSingle();
   }
 
   // --- Histórico ------------------------------------------------------
