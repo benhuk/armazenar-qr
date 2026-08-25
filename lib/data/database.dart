@@ -3,6 +3,15 @@ import 'package:drift_flutter/drift_flutter.dart';
 
 part 'database.g.dart';
 
+/// Movimentação recusada: quantidade inválida, tipo desconhecido, produto
+/// inexistente ou saída maior que o estoque disponível.
+class MovimentacaoInvalida implements Exception {
+  MovimentacaoInvalida(this.motivo);
+  final String motivo;
+  @override
+  String toString() => 'MovimentacaoInvalida: $motivo';
+}
+
 // ---------------------------------------------------------------------------
 // Tabelas
 // ---------------------------------------------------------------------------
@@ -127,6 +136,10 @@ class AppDatabase extends _$AppDatabase {
   }
 
   /// Dá baixa (ou entrada) e registra a movimentação, tudo em uma transação.
+  ///
+  /// A estrutura transacional é fixa: buscar o produto, calcular o novo saldo,
+  /// gravar o saldo e o histórico — tudo ou nada. O que decide o saldo (e o que
+  /// é recusado) mora em [calcularNovaQuantidade].
   Future<void> registrarMovimentacao({
     required int produtoId,
     required String tipo, // 'entrada' ou 'saida'
@@ -136,11 +149,16 @@ class AppDatabase extends _$AppDatabase {
     await transaction(() async {
       final produto =
           await (select(produtos)..where((p) => p.id.equals(produtoId)))
-              .getSingle();
+              .getSingleOrNull();
+      if (produto == null) {
+        throw MovimentacaoInvalida('produto $produtoId não existe');
+      }
 
-      final novaQuantidade = tipo == 'saida'
-          ? produto.quantidadeAtual - quantidade
-          : produto.quantidadeAtual + quantidade;
+      final novaQuantidade = calcularNovaQuantidade(
+        estoqueAtual: produto.quantidadeAtual,
+        tipo: tipo,
+        quantidade: quantidade,
+      );
 
       await (update(produtos)..where((p) => p.id.equals(produtoId))).write(
         ProdutosCompanion(quantidadeAtual: Value(novaQuantidade)),
@@ -155,6 +173,23 @@ class AppDatabase extends _$AppDatabase {
         ),
       );
     });
+  }
+
+  /// Decide o novo saldo de estoque, ou recusa a movimentação.
+  ///
+  /// Função pura: não toca no banco. Regras:
+  /// - [quantidade] tem que ser maior que zero;
+  /// - [tipo] só pode ser `'entrada'` ou `'saida'`;
+  /// - `'entrada'` soma, `'saida'` subtrai;
+  /// - saída não pode deixar o estoque negativo (zerar é permitido).
+  ///
+  /// Recusa lançando [MovimentacaoInvalida] com o motivo.
+  int calcularNovaQuantidade({
+    required int estoqueAtual,
+    required String tipo,
+    required int quantidade,
+  }) {
+    throw UnimplementedError('calcularNovaQuantidade');
   }
 
   // --- Histórico ------------------------------------------------------
