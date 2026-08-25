@@ -69,7 +69,30 @@ class AppDatabase extends _$AppDatabase {
   /// partir do maior número já existente na tabela, ignorando códigos cujo
   /// sufixo não seja numérico. Devolve os códigos gerados, na ordem.
   Future<List<String>> gerarLoteEtiquetas(int quantidade) async {
-    throw UnimplementedError('gerarLoteEtiquetas');
+    if (quantidade <= 0) return [];
+
+    final existingEtiquetas = await select(etiquetas).get();
+    int lastNumber = 0;
+
+    for (final etiqueta in existingEtiquetas) {
+      final match = RegExp(r'^PRD-(\d{6})$').firstMatch(etiqueta.codigo);
+      if (match != null) {
+        final number = int.parse(match.group(1)!);
+        if (number > lastNumber) {
+          lastNumber = number;
+        }
+      }
+    }
+
+    final newEtiquetas = <String>[];
+    for (int i = 0; i < quantidade; i++) {
+      lastNumber++;
+      final code = 'PRD-${lastNumber.toString().padLeft(6, '0')}';
+      newEtiquetas.add(code);
+      await into(etiquetas).insert(EtiquetasCompanion(codigo: Value(code)));
+    }
+
+    return newEtiquetas;
   }
 
   /// Etiquetas já geradas mas ainda não vinculadas a um produto.
