@@ -64,28 +64,12 @@ class AppDatabase extends _$AppDatabase {
   // --- Etiquetas --------------------------------------------------------
 
   /// Gera [quantidade] códigos únicos e livres, prontos pra imprimir.
-  /// Continua a numeração a partir do último código já gerado.
+  ///
+  /// Formato `PRD-` + 6 dígitos com zeros à esquerda. Continua a numeração a
+  /// partir do maior número já existente na tabela, ignorando códigos cujo
+  /// sufixo não seja numérico. Devolve os códigos gerados, na ordem.
   Future<List<String>> gerarLoteEtiquetas(int quantidade) async {
-    final ultima = await (select(etiquetas)
-          ..orderBy([(t) => OrderingTerm.desc(t.id)])
-          ..limit(1))
-        .getSingleOrNull();
-
-    var proximo = 1;
-    if (ultima != null) {
-      final numero = int.tryParse(ultima.codigo.split('-').last);
-      if (numero != null) proximo = numero + 1;
-    }
-
-    final codigos = <String>[];
-    await batch((b) {
-      for (var i = 0; i < quantidade; i++) {
-        final codigo = 'PRD-${(proximo + i).toString().padLeft(6, '0')}';
-        codigos.add(codigo);
-        b.insert(etiquetas, EtiquetasCompanion.insert(codigo: codigo));
-      }
-    });
-    return codigos;
+    throw UnimplementedError('gerarLoteEtiquetas');
   }
 
   /// Etiquetas já geradas mas ainda não vinculadas a um produto.
