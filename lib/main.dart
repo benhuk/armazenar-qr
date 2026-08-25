@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'data/database.dart';
+import 'screens/backup_screen.dart';
 import 'screens/cadastro_produto_screen.dart';
 import 'screens/estoque_screen.dart';
 import 'screens/gerar_etiquetas_screen.dart';
@@ -77,6 +78,14 @@ class HomeScreen extends StatelessWidget {
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const HistoricoScreen()),
+            ),
+          ),
+          _MenuCard(
+            icon: Icons.backup_outlined,
+            titulo: 'Backup',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const BackupScreen()),
             ),
           ),
         ],

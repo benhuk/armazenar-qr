@@ -84,7 +84,7 @@ class BackupService {
   /// compartilham o nome e um sobrescreve o outro, o que é melhor do que
   /// encher a pasta de arquivos quase idênticos.
   String nomeDoArquivo(DateTime quando) {
-    throw UnimplementedError('nomeDoArquivo');
+    return 'estoque_qr_${quando.year}-${quando.month.toString().padLeft(2, '0')}-${quando.day.toString().padLeft(2, '0')}_${quando.hour.toString().padLeft(2, '0')}${quando.minute.toString().padLeft(2, '0')}.json';
   }
 
   /// Grava o backup num arquivo dentro de [destino] e devolve o arquivo.
@@ -92,7 +92,10 @@ class BackupService {
   /// O conteúdo é exatamente o de [exportarJson]; o nome vem de
   /// [nomeDoArquivo], usando a hora corrente.
   Future<File> exportarParaArquivo(Directory destino) async {
-    throw UnimplementedError('exportarParaArquivo');
+    final conteudo = await exportarJson();
+    final arquivo = File('${destino.path}/${nomeDoArquivo(DateTime.now())}');
+    await arquivo.writeAsString(conteudo);
+    return arquivo;
   }
 
   /// Lê um backup de [arquivo] e o aplica com [importarJson].
@@ -101,6 +104,10 @@ class BackupService {
   /// validado por [importarJson], que já recusa JSON malformado e versão
   /// desconhecida sem tocar no banco.
   Future<void> importarDeArquivo(File arquivo) async {
-    throw UnimplementedError('importarDeArquivo');
+    if (!arquivo.existsSync()) {
+      throw BackupInvalido('Arquivo não existe');
+    }
+    final conteudo = await arquivo.readAsString();
+    await importarJson(conteudo);
   }
 }

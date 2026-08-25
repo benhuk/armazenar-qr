@@ -37,8 +37,8 @@ class _CadastroProdutoScreenState extends State<CadastroProdutoScreen> {
       ),
     );
 
-    // TODO: vincular a uma etiqueta livre (db.listarEtiquetasLivres() +
-    // db.vincularEtiqueta(codigo, id)) ou gerar uma etiqueta nova aqui.
+    // Etiqueta agora nasce atrelada a um produto: quem gera é a tela
+    // "Gerar etiquetas", escolhendo este produto na lista.
 
     if (mounted) Navigator.pop(context, id);
   }
@@ -71,7 +71,6 @@ class _CadastroProdutoScreenState extends State<CadastroProdutoScreen> {
               keyboardType: TextInputType.number,
             ),
             const SizedBox(height: 12),
-            // TODO: seletor de etiqueta livre / botão "gerar etiqueta agora"
             const SizedBox(height: 24),
             FilledButton(onPressed: _salvar, child: const Text('Salvar')),
           ],

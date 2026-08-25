@@ -26,6 +26,10 @@ dependencies:
   # Permissões (câmera)
   permission_handler: ^11.3.0
 
+  # Compartilhar o arquivo de backup: sem isso ele fica no armazenamento
+  # privado do app, que o usuario nao alcanca.
+  share_plus: ^10.0.0
+
   # Gerenciamento de estado
   provider: ^6.1.0
 
