@@ -128,28 +128,34 @@ class AppDatabase extends _$AppDatabase {
   /// existir, ou se a etiqueta já estiver vinculada — inclusive ao mesmo
   /// produto. Em caso de recusa nada é gravado.
   Future<void> vincularEtiqueta(String codigo, int produtoId) async {
-    final etiqueta = await (select(etiquetas)
-          ..where((t) => t.codigo.equals(codigo)))
-        .getSingleOrNull();
+    // Checar `vinculado` e gravar tem que ser atômico: sem a transação, duas
+    // chamadas simultâneas leem a etiqueta ainda livre, as duas passam na
+    // guarda de dupla-vinculação, e a segunda sobrescreve a primeira.
+    await transaction(() async {
+      final etiqueta = await (select(etiquetas)
+            ..where((t) => t.codigo.equals(codigo)))
+          .getSingleOrNull();
+      if (etiqueta == null) {
+        throw VinculoInvalido('código $codigo não existe');
+      }
+      if (etiqueta.vinculado) {
+        throw VinculoInvalido('etiqueta $codigo já está vinculada');
+      }
 
-    if (etiqueta == null) {
-      throw VinculoInvalido('Código de etiqueta inexistente');
-    }
+      final produto = await (select(produtos)
+            ..where((p) => p.id.equals(produtoId)))
+          .getSingleOrNull();
+      if (produto == null) {
+        throw VinculoInvalido('produto $produtoId não existe');
+      }
 
-    if (etiqueta.vinculado) {
-      throw VinculoInvalido('Etiqueta já vinculada');
-    }
-
-    final produto = await (select(produtos)..where((p) => p.id.equals(produtoId)))
-        .getSingleOrNull();
-
-    if (produto == null) {
-      throw VinculoInvalido('Produto inexistente');
-    }
-
-    await (update(etiquetas)
-          ..where((t) => t.codigo.equals(codigo)))
-        .write(EtiquetasCompanion(vinculado: const Value(true), produtoId: Value(produtoId)));
+      await (update(etiquetas)..where((t) => t.codigo.equals(codigo))).write(
+        EtiquetasCompanion(
+          vinculado: const Value(true),
+          produtoId: Value(produtoId),
+        ),
+      );
+    });
   }
 
   // --- Scanner / baixa ----------------------------------------------------
