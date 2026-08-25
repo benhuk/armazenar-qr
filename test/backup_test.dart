@@ -112,6 +112,18 @@ void main() {
       );
     });
 
+    test('a recusa diz o motivo certo, nao um generico', () async {
+      // Um `catch` abrangente que reetiqueta tudo como "JSON malformado"
+      // passa nos testes de tipo e esconde a causa real — inclusive falha de
+      // banco, que nao tem nada a ver com o JSON.
+      final json = jsonEncode({'versao': 99, 'produtos': [], 'movimentacoes': []});
+      await expectLater(
+        backup.importarJson(json),
+        throwsA(isA<BackupInvalido>()
+            .having((e) => e.motivo, 'motivo', contains('vers'))),
+      );
+    });
+
     test('importacao recusada nao altera o banco', () async {
       await criarProduto('Parafuso', estoque: 1);
       await expectLater(
