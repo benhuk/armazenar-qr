@@ -71,12 +71,12 @@ void main() {
     // e continua valendo por uma baixa
     await db.registrarMovimentacao(
         produtoId: 1, tipo: 'entrada', quantidade: 5);
-    final produto = await db.darBaixaPorCodigo('PRD-000001', 1);
+    final produto = await db.darBaixaPorCodigo('PRD-000001');
     expect(produto.quantidadeAtual, 4);
 
     // mas so por uma
     await expectLater(
-      db.darBaixaPorCodigo('PRD-000001', 1),
+      db.darBaixaPorCodigo('PRD-000001'),
       throwsA(isA<VinculoInvalido>()),
     );
   });

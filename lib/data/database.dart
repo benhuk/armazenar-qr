@@ -56,6 +56,9 @@ class Etiquetas extends Table {
   // Etiqueta vale por uma baixa so: aqui fica quando ela foi consumida.
   // Nulo = ainda disponivel.
   DateTimeColumn get usadaEm => dateTime().nullable()();
+  // Quantas unidades esta etiqueta representa. 1 para item avulso; mais de 1
+  // para caixa fechada. E a etiqueta que decide a baixa, nao quem escaneia.
+  IntColumn get unidades => integer().withDefault(const Constant(1))();
 }
 
 // ---------------------------------------------------------------------------
@@ -71,7 +74,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -88,12 +91,20 @@ class AppDatabase extends _$AppDatabase {
             // senão o TableMigration tenta copiá-la da tabela antiga. Ele usa
             // a definição ATUAL da tabela, não a da v2.
             await m.alterTable(
-              TableMigration(etiquetas, newColumns: [etiquetas.usadaEm]),
+              TableMigration(
+                etiquetas,
+                newColumns: [etiquetas.usadaEm, etiquetas.unidades],
+              ),
             );
           } else if (from < 3) {
             // v3: etiqueta passa a valer por uma baixa só. As que já existem
             // ficam com usada_em nulo, ou seja, continuam disponíveis.
             await m.addColumn(etiquetas, etiquetas.usadaEm);
+          }
+          if (from >= 2 && from < 4) {
+            // v4: etiqueta passa a carregar quantas unidades vale. As antigas
+            // valem 1, que é o default da coluna.
+            await m.addColumn(etiquetas, etiquetas.unidades);
           }
         },
       );
@@ -114,7 +125,14 @@ class AppDatabase extends _$AppDatabase {
   ///
   /// Etiqueta só existe atrelada a um produto: as geradas aqui já nascem
   /// vinculadas. Recusa com [VinculoInvalido] se o produto não existir.
-  Future<List<String>> gerarLoteEtiquetas(int quantidade, int produtoId) async {
+  Future<List<String>> gerarLoteEtiquetas(
+    int quantidade,
+    int produtoId, {
+    int unidades = 1,
+  }) async {
+    if (unidades <= 0) {
+      throw MovimentacaoInvalida('unidades por etiqueta tem que ser > 0');
+    }
     if (quantidade <= 0) return [];
 
     // Tudo numa transação: entre ler o maior número e gravar o lote não pode
@@ -144,7 +162,11 @@ class AppDatabase extends _$AppDatabase {
             etiquetas,
             [
               for (final c in codigos)
-                EtiquetasCompanion.insert(codigo: c, produtoId: produtoId),
+                EtiquetasCompanion.insert(
+                  codigo: c,
+                  produtoId: produtoId,
+                  unidades: Value(unidades),
+                ),
             ],
           ));
 
@@ -279,8 +301,9 @@ class AppDatabase extends _$AppDatabase {
 
   /// Dá baixa no produto dono da etiqueta [codigo] e CONSOME a etiqueta.
   ///
-  /// Cada etiqueta vale por uma baixa só: relida, é recusada. Sem isso o mesmo
-  /// QR na frente da câmera desconta o estoque repetidamente.
+  /// A quantidade vem da própria etiqueta (`unidades`), não do chamador: quem
+  /// escaneia não escolhe nada. Cada etiqueta vale por uma baixa só; relida,
+  /// é recusada.
   ///
   /// Checar e marcar tem que ser atômico, junto com a movimentação: se a baixa
   /// for recusada (estoque insuficiente, quantidade inválida), a etiqueta
@@ -291,8 +314,7 @@ class AppDatabase extends _$AppDatabase {
   /// usado, e com [MovimentacaoInvalida] se a quantidade for inválida ou maior
   /// que o estoque.
   Future<Produto> darBaixaPorCodigo(
-    String codigo,
-    int quantidade, {
+    String codigo, {
     String? observacao,
   }) async {
     return transaction(() async {
@@ -306,10 +328,11 @@ class AppDatabase extends _$AppDatabase {
         throw VinculoInvalido('etiqueta $codigo já foi utilizada');
       }
 
+      // Quem decide o quanto é a etiqueta, não quem escaneia.
       await registrarMovimentacao(
         produtoId: etiqueta.produtoId,
         tipo: 'saida',
-        quantidade: quantidade,
+        quantidade: etiqueta.unidades,
         observacao: observacao,
       );
 

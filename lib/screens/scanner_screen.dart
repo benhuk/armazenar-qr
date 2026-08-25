@@ -50,10 +50,10 @@ class _ScannerScreenState extends State<ScannerScreen> {
     final db = context.read<AppDatabase>();
     late final _Leitura resultado;
     try {
-      final produto = await db.darBaixaPorCodigo(codigo, 1);
+      final produto = await db.darBaixaPorCodigo(codigo);
       resultado = _Leitura(
         ok: true,
-        mensagem: 'Baixa de 1 registrada.',
+        mensagem: 'Baixa registrada.',
         produto: produto,
       );
     } on MovimentacaoInvalida catch (e) {

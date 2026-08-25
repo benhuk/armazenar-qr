@@ -1,6 +1,8 @@
 // Especificacao de `darBaixaPorCodigo` — Fase 1.
-// E o que o scanner precisa: um codigo lido vira movimentacao de saida.
-// Hoje a tela so mostra o nome do produto e nao mexe no estoque.
+//
+// Modelo: a etiqueta carrega quantas unidades vale. Quem escaneia nao escolhe
+// nada — le e a baixa acontece. Etiqueta avulsa vale 1; etiqueta de caixa vale
+// o que foi definido ao gerar.
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:estoque_qr/data/database.dart';
@@ -25,46 +27,37 @@ void main() {
     return p.quantidadeAtual;
   }
 
-  group('darBaixaPorCodigo', () {
-    test('baixa a quantidade do estoque do produto da etiqueta', () async {
+  group('etiqueta avulsa (1 unidade)', () {
+    test('baixa uma unidade', () async {
       final id = await criarProduto('Parafuso', estoque: 10);
       final codigo = (await db.gerarLoteEtiquetas(1, id)).single;
 
-      await db.darBaixaPorCodigo(codigo, 3);
+      await db.darBaixaPorCodigo(codigo);
 
-      expect(await estoqueDe(id), 7);
+      expect(await estoqueDe(id), 9);
     });
 
-    test('devolve o produto que sofreu a baixa', () async {
+    test('devolve o produto com o estoque ja descontado', () async {
       final id = await criarProduto('Parafuso', estoque: 10);
       final codigo = (await db.gerarLoteEtiquetas(1, id)).single;
 
-      final produto = await db.darBaixaPorCodigo(codigo, 2);
+      final produto = await db.darBaixaPorCodigo(codigo);
 
       expect(produto.id, id);
       expect(produto.nome, 'Parafuso');
+      expect(produto.quantidadeAtual, 9);
     });
 
-    test('o produto devolvido ja reflete o estoque novo', () async {
+    test('registra a movimentacao como saida', () async {
       final id = await criarProduto('Parafuso', estoque: 10);
       final codigo = (await db.gerarLoteEtiquetas(1, id)).single;
 
-      final produto = await db.darBaixaPorCodigo(codigo, 4);
-
-      expect(produto.quantidadeAtual, 6,
-          reason: 'a tela mostra esse numero depois do bipe');
-    });
-
-    test('registra a movimentacao no historico como saida', () async {
-      final id = await criarProduto('Parafuso', estoque: 10);
-      final codigo = (await db.gerarLoteEtiquetas(1, id)).single;
-
-      await db.darBaixaPorCodigo(codigo, 3, observacao: 'bipe no galpao');
+      await db.darBaixaPorCodigo(codigo, observacao: 'bipe no galpao');
 
       final movs = await db.listarMovimentacoes(produtoId: id);
       expect(movs, hasLength(1));
       expect(movs.single.tipo, 'saida');
-      expect(movs.single.quantidade, 3);
+      expect(movs.single.quantidade, 1);
       expect(movs.single.observacao, 'bipe no galpao');
     });
 
@@ -72,80 +65,84 @@ void main() {
       final id = await criarProduto('Parafuso', estoque: 5);
       final codigo = (await db.gerarLoteEtiquetas(1, id)).single;
 
-      await db.darBaixaPorCodigo(codigo, 1);
+      await db.darBaixaPorCodigo(codigo);
 
       final movs = await db.listarMovimentacoes(produtoId: id);
       expect(movs.single.observacao, isNull);
     });
+  });
 
-    test('recusa codigo que nao existe', () async {
-      await expectLater(
-        db.darBaixaPorCodigo('PRD-999999', 1),
-        throwsA(isA<VinculoInvalido>()),
-      );
+  group('etiqueta de caixa (N unidades)', () {
+    test('baixa o que a etiqueta vale, nao 1', () async {
+      final id = await criarProduto('Parafuso', estoque: 100);
+      final codigo =
+          (await db.gerarLoteEtiquetas(1, id, unidades: 12)).single;
+
+      await db.darBaixaPorCodigo(codigo);
+
+      expect(await estoqueDe(id), 88);
     });
 
-    test('codigo inexistente nao grava movimentacao nenhuma', () async {
-      await criarProduto('Parafuso', estoque: 5);
-      await expectLater(
-        db.darBaixaPorCodigo('PRD-999999', 1),
-        throwsA(isA<VinculoInvalido>()),
-      );
-      expect(await db.listarMovimentacoes(), isEmpty);
+    test('a movimentacao registra a quantidade da etiqueta', () async {
+      final id = await criarProduto('Parafuso', estoque: 100);
+      final codigo =
+          (await db.gerarLoteEtiquetas(1, id, unidades: 12)).single;
+
+      await db.darBaixaPorCodigo(codigo);
+
+      final movs = await db.listarMovimentacoes(produtoId: id);
+      expect(movs.single.quantidade, 12);
     });
 
-    test('recusa baixa maior que o estoque', () async {
-      final id = await criarProduto('Parafuso', estoque: 2);
-      final codigo = (await db.gerarLoteEtiquetas(1, id)).single;
+    test('etiquetas de tamanhos diferentes convivem no mesmo produto',
+        () async {
+      final id = await criarProduto('Parafuso', estoque: 100);
+      final caixa = (await db.gerarLoteEtiquetas(1, id, unidades: 12)).single;
+      final avulsa = (await db.gerarLoteEtiquetas(1, id)).single;
 
-      await expectLater(
-        db.darBaixaPorCodigo(codigo, 5),
-        throwsA(isA<MovimentacaoInvalida>()),
-      );
-      expect(await estoqueDe(id), 2, reason: 'estoque nao pode mudar');
-      expect(await db.listarMovimentacoes(), isEmpty);
+      await db.darBaixaPorCodigo(caixa);
+      await db.darBaixaPorCodigo(avulsa);
+
+      expect(await estoqueDe(id), 87);
     });
 
-    test('recusa quantidade zero ou negativa', () async {
-      final id = await criarProduto('Parafuso', estoque: 5);
-      final codigo = (await db.gerarLoteEtiquetas(1, id)).single;
-
-      for (final q in [0, -2]) {
+    test('gerar com unidades zero ou negativa e recusado', () async {
+      final id = await criarProduto('Parafuso', estoque: 10);
+      for (final u in [0, -3]) {
         await expectLater(
-          db.darBaixaPorCodigo(codigo, q),
+          db.gerarLoteEtiquetas(1, id, unidades: u),
           throwsA(isA<MovimentacaoInvalida>()),
         );
       }
-      expect(await estoqueDe(id), 5);
+      expect(await db.select(db.etiquetas).get(), isEmpty);
     });
 
-    test('baixa que zera o estoque e permitida', () async {
-      final id = await criarProduto('Parafuso', estoque: 3);
-      final codigo = (await db.gerarLoteEtiquetas(1, id)).single;
-
-      final produto = await db.darBaixaPorCodigo(codigo, 3);
-
-      expect(produto.quantidadeAtual, 0);
-    });
-
-    test('duas etiquetas do mesmo produto baixam do mesmo estoque', () async {
+    test('sem informar unidades, a etiqueta vale 1', () async {
       final id = await criarProduto('Parafuso', estoque: 10);
-      final codigos = await db.gerarLoteEtiquetas(2, id);
+      await db.gerarLoteEtiquetas(2, id);
 
-      await db.darBaixaPorCodigo(codigos[0], 2);
-      await db.darBaixaPorCodigo(codigos[1], 3);
+      final salvas = await db.select(db.etiquetas).get();
+      expect(salvas.every((e) => e.unidades == 1), isTrue);
+    });
+  });
 
-      expect(await estoqueDe(id), 5);
+  group('recusas', () {
+    test('recusa codigo que nao existe', () async {
+      await expectLater(
+        db.darBaixaPorCodigo('PRD-999999'),
+        throwsA(isA<VinculoInvalido>()),
+      );
+      expect(await db.listarMovimentacoes(), isEmpty);
     });
 
     test('a mesma etiqueta nao pode dar baixa duas vezes', () async {
       final id = await criarProduto('Parafuso', estoque: 10);
       final codigo = (await db.gerarLoteEtiquetas(1, id)).single;
 
-      await db.darBaixaPorCodigo(codigo, 1);
+      await db.darBaixaPorCodigo(codigo);
 
       await expectLater(
-        db.darBaixaPorCodigo(codigo, 1),
+        db.darBaixaPorCodigo(codigo),
         throwsA(isA<VinculoInvalido>()),
       );
       expect(await estoqueDe(id), 9, reason: 'so a primeira leitura conta');
@@ -157,38 +154,59 @@ void main() {
       final codigos = await db.gerarLoteEtiquetas(3, id);
 
       for (final c in codigos) {
-        await db.darBaixaPorCodigo(c, 1);
+        await db.darBaixaPorCodigo(c);
       }
 
       expect(await estoqueDe(id), 7);
       expect(await db.listarMovimentacoes(produtoId: id), hasLength(3));
     });
 
-    test('baixa recusada nao consome a etiqueta', () async {
-      // Se o estoque nao dava, a etiqueta continua valendo: seria perverso
-      // queimar a etiqueta numa operacao que nao aconteceu.
-      final id = await criarProduto('Parafuso', estoque: 2);
-      final codigo = (await db.gerarLoteEtiquetas(1, id)).single;
+    test('recusa caixa maior que o estoque', () async {
+      final id = await criarProduto('Parafuso', estoque: 5);
+      final codigo =
+          (await db.gerarLoteEtiquetas(1, id, unidades: 12)).single;
 
       await expectLater(
-        db.darBaixaPorCodigo(codigo, 5),
+        db.darBaixaPorCodigo(codigo),
+        throwsA(isA<MovimentacaoInvalida>()),
+      );
+      expect(await estoqueDe(id), 5);
+    });
+
+    test('baixa recusada nao consome a etiqueta', () async {
+      // Seria perverso queimar a etiqueta numa operacao que nao aconteceu.
+      final id = await criarProduto('Parafuso', estoque: 5);
+      final codigo =
+          (await db.gerarLoteEtiquetas(1, id, unidades: 12)).single;
+
+      await expectLater(
+        db.darBaixaPorCodigo(codigo),
         throwsA(isA<MovimentacaoInvalida>()),
       );
 
-      final produto = await db.darBaixaPorCodigo(codigo, 2);
+      // repoe o estoque e a mesma etiqueta ainda vale
+      await db.registrarMovimentacao(
+          produtoId: id, tipo: 'entrada', quantidade: 10);
+      final produto = await db.darBaixaPorCodigo(codigo);
+      expect(produto.quantidadeAtual, 3);
+    });
+
+    test('baixa que zera o estoque e permitida', () async {
+      final id = await criarProduto('Parafuso', estoque: 3);
+      final codigo = (await db.gerarLoteEtiquetas(1, id, unidades: 3)).single;
+
+      final produto = await db.darBaixaPorCodigo(codigo);
       expect(produto.quantidadeAtual, 0);
     });
 
     test('duas leituras simultaneas da mesma etiqueta: so uma vence', () async {
-      // Checar `usadaEm` e gravar tem que ser atomico, ou o bipe duplo passa
-      // pelas duas guardas antes de qualquer uma marcar a etiqueta.
       final id = await criarProduto('Parafuso', estoque: 10);
       final codigo = (await db.gerarLoteEtiquetas(1, id)).single;
 
       final desfechos = await Future.wait([
-        db.darBaixaPorCodigo(codigo, 1).then((_) => 'ok').catchError(
+        db.darBaixaPorCodigo(codigo).then((_) => 'ok').catchError(
             (Object e) => e is VinculoInvalido ? 'recusado' : 'erro'),
-        db.darBaixaPorCodigo(codigo, 1).then((_) => 'ok').catchError(
+        db.darBaixaPorCodigo(codigo).then((_) => 'ok').catchError(
             (Object e) => e is VinculoInvalido ? 'recusado' : 'erro'),
       ]);
 
