@@ -85,14 +85,55 @@ class AppDatabase extends _$AppDatabase {
   /// imprimir.
   ///
   /// Etiqueta só existe atrelada a um produto: as geradas aqui já nascem
-  /// vinculadas. Formato `PRD-` + 6 dígitos com zeros à esquerda. A numeração é
-  /// global — continua a partir do maior número existente na tabela inteira,
-  /// não por produto —, ignorando códigos de sufixo não numérico.
-  ///
-  /// Recusa com [VinculoInvalido] se o produto não existir; nesse caso nada é
-  /// gravado. Devolve os códigos gerados, na ordem.
+  /// vinculadas. Recusa com [VinculoInvalido] se o produto não existir.
   Future<List<String>> gerarLoteEtiquetas(int quantidade, int produtoId) async {
-    throw UnimplementedError('gerarLoteEtiquetas');
+    if (quantidade <= 0) return [];
+
+    // Tudo numa transação: entre ler o maior número e gravar o lote não pode
+    // entrar outra geração, ou os dois lotes colidiriam no índice UNIQUE.
+    return transaction(() async {
+      final produto = await (select(produtos)
+            ..where((p) => p.id.equals(produtoId)))
+          .getSingleOrNull();
+      if (produto == null) {
+        throw VinculoInvalido('produto $produtoId não existe');
+      }
+
+      // MAX no banco: o GLOB garante que só códigos com 6 dígitos entrem na
+      // conta, então sufixo não numérico é ignorado sem filtrar em Dart.
+      final linha = await customSelect(
+        "SELECT MAX(CAST(SUBSTR(codigo, 5) AS INTEGER)) AS maior FROM etiquetas "
+        "WHERE codigo GLOB 'PRD-[0-9][0-9][0-9][0-9][0-9][0-9]'",
+        readsFrom: {etiquetas},
+      ).getSingle();
+      final proximo = (linha.read<int?>('maior') ?? 0) + 1;
+
+      final codigos = [
+        for (var i = 0; i < quantidade; i++) formatarCodigo(proximo + i),
+      ];
+
+      await batch((b) => b.insertAll(
+            etiquetas,
+            [
+              for (final c in codigos)
+                EtiquetasCompanion.insert(
+                  codigo: c,
+                  produtoId: Value(produtoId),
+                  vinculado: const Value(true),
+                ),
+            ],
+          ));
+
+      return codigos;
+    });
+  }
+
+  /// Monta o código de etiqueta a partir do número sequencial [numero].
+  ///
+  /// Função pura: `PRD-` seguido do número em 6 dígitos, com zeros à esquerda.
+  /// Ex.: `1` vira `PRD-000001`; `12` vira `PRD-000012`.
+  String formatarCodigo(int numero) {
+    throw UnimplementedError('formatarCodigo');
   }
 
   // --- Scanner / baixa ----------------------------------------------------
