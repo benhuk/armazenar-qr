@@ -71,28 +71,33 @@ class AppDatabase extends _$AppDatabase {
   Future<List<String>> gerarLoteEtiquetas(int quantidade) async {
     if (quantidade <= 0) return [];
 
-    final existingEtiquetas = await select(etiquetas).get();
-    int lastNumber = 0;
+    // Tudo numa transação: entre ler o maior número e gravar o lote não pode
+    // entrar outra geração, ou os dois lotes colidiriam no índice UNIQUE.
+    return transaction(() async {
+      // MAX no banco em vez de carregar a tabela: o GLOB garante que só
+      // códigos com 6 dígitos entrem na conta, então o sufixo não numérico é
+      // ignorado sem precisar filtrar em Dart.
+      final linha = await customSelect(
+        "SELECT MAX(CAST(SUBSTR(codigo, 5) AS INTEGER)) AS maior FROM etiquetas "
+        "WHERE codigo GLOB 'PRD-[0-9][0-9][0-9][0-9][0-9][0-9]'",
+        readsFrom: {etiquetas},
+      ).getSingle();
+      final proximo = (linha.read<int?>('maior') ?? 0) + 1;
 
-    for (final etiqueta in existingEtiquetas) {
-      final match = RegExp(r'^PRD-(\d{6})$').firstMatch(etiqueta.codigo);
-      if (match != null) {
-        final number = int.parse(match.group(1)!);
-        if (number > lastNumber) {
-          lastNumber = number;
-        }
-      }
-    }
+      final codigos = [
+        for (var i = 0; i < quantidade; i++)
+          'PRD-${(proximo + i).toString().padLeft(6, '0')}',
+      ];
 
-    final newEtiquetas = <String>[];
-    for (int i = 0; i < quantidade; i++) {
-      lastNumber++;
-      final code = 'PRD-${lastNumber.toString().padLeft(6, '0')}';
-      newEtiquetas.add(code);
-      await into(etiquetas).insert(EtiquetasCompanion(codigo: Value(code)));
-    }
+      // batch = uma única ida ao banco, e all-or-nothing: se um insert falhar,
+      // nenhum código do lote fica gravado.
+      await batch((b) => b.insertAll(
+            etiquetas,
+            [for (final c in codigos) EtiquetasCompanion.insert(codigo: c)],
+          ));
 
-    return newEtiquetas;
+      return codigos;
+    });
   }
 
   /// Etiquetas já geradas mas ainda não vinculadas a um produto.
