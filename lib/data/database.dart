@@ -265,6 +265,24 @@ class AppDatabase extends _$AppDatabase {
     });
   }
 
+  /// Dá baixa no produto dono da etiqueta [codigo].
+  ///
+  /// É o que o scanner precisa: código lido vira movimentação de saída.
+  /// Compõe [buscarProdutoPorCodigo] e [registrarMovimentacao], que já são
+  /// testados — aqui só falta juntar os dois e devolver o produto ATUALIZADO,
+  /// com o estoque já descontado (a tela mostra esse número depois do bipe).
+  ///
+  /// Recusa com [VinculoInvalido] se o código não existir, e com
+  /// [MovimentacaoInvalida] se a quantidade for inválida ou maior que o
+  /// estoque. Em qualquer recusa, nada é gravado.
+  Future<Produto> darBaixaPorCodigo(
+    String codigo,
+    int quantidade, {
+    String? observacao,
+  }) async {
+    throw UnimplementedError('darBaixaPorCodigo');
+  }
+
   // --- Histórico ------------------------------------------------------
 
   Future<List<Movimentacao>> listarMovimentacoes({int? produtoId}) {
