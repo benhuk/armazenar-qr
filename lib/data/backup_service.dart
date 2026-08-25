@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'database.dart';
 
@@ -71,5 +72,35 @@ class BackupService {
       }
       throw BackupInvalido('JSON malformado');
     }
+  }
+
+  /// Nome do arquivo de backup para o instante [quando].
+  ///
+  /// Função pura. Formato `estoque_qr_AAAA-MM-DD_HHMM.json`, com mês, dia,
+  /// hora e minuto sempre em dois dígitos. Ex.: 25/08/2026 às 14:07 vira
+  /// `estoque_qr_2026-08-25_1407.json`.
+  ///
+  /// A precisão para no minuto de propósito: dois backups no mesmo minuto
+  /// compartilham o nome e um sobrescreve o outro, o que é melhor do que
+  /// encher a pasta de arquivos quase idênticos.
+  String nomeDoArquivo(DateTime quando) {
+    throw UnimplementedError('nomeDoArquivo');
+  }
+
+  /// Grava o backup num arquivo dentro de [destino] e devolve o arquivo.
+  ///
+  /// O conteúdo é exatamente o de [exportarJson]; o nome vem de
+  /// [nomeDoArquivo], usando a hora corrente.
+  Future<File> exportarParaArquivo(Directory destino) async {
+    throw UnimplementedError('exportarParaArquivo');
+  }
+
+  /// Lê um backup de [arquivo] e o aplica com [importarJson].
+  ///
+  /// Recusa com [BackupInvalido] se o arquivo não existir. O conteúdo é
+  /// validado por [importarJson], que já recusa JSON malformado e versão
+  /// desconhecida sem tocar no banco.
+  Future<void> importarDeArquivo(File arquivo) async {
+    throw UnimplementedError('importarDeArquivo');
   }
 }
