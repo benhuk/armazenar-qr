@@ -128,7 +128,28 @@ class AppDatabase extends _$AppDatabase {
   /// existir, ou se a etiqueta já estiver vinculada — inclusive ao mesmo
   /// produto. Em caso de recusa nada é gravado.
   Future<void> vincularEtiqueta(String codigo, int produtoId) async {
-    throw UnimplementedError('vincularEtiqueta');
+    final etiqueta = await (select(etiquetas)
+          ..where((t) => t.codigo.equals(codigo)))
+        .getSingleOrNull();
+
+    if (etiqueta == null) {
+      throw VinculoInvalido('Código de etiqueta inexistente');
+    }
+
+    if (etiqueta.vinculado) {
+      throw VinculoInvalido('Etiqueta já vinculada');
+    }
+
+    final produto = await (select(produtos)..where((p) => p.id.equals(produtoId)))
+        .getSingleOrNull();
+
+    if (produto == null) {
+      throw VinculoInvalido('Produto inexistente');
+    }
+
+    await (update(etiquetas)
+          ..where((t) => t.codigo.equals(codigo)))
+        .write(EtiquetasCompanion(vinculado: const Value(true), produtoId: Value(produtoId)));
   }
 
   // --- Scanner / baixa ----------------------------------------------------
@@ -138,7 +159,15 @@ class AppDatabase extends _$AppDatabase {
   /// Devolve `null` se o código não existir ou se a etiqueta ainda estiver
   /// livre (impressa, mas não vinculada a nenhum produto).
   Future<Produto?> buscarProdutoPorCodigo(String codigo) async {
-    throw UnimplementedError('buscarProdutoPorCodigo');
+    final etiqueta = await (select(etiquetas)
+          ..where((t) => t.codigo.equals(codigo)))
+        .getSingleOrNull();
+
+    if (etiqueta == null || !etiqueta.vinculado) {
+      return null;
+    }
+
+    return (select(produtos)..where((p) => p.id.equals(etiqueta.produtoId!))).getSingleOrNull();
   }
 
   /// Dá baixa (ou entrada) e registra a movimentação, tudo em uma transação.
