@@ -1,6 +1,7 @@
 // Especificacao da listagem de etiquetas por produto — Fase 1.
 // O dado de consumo (usadaEm) existe mas nenhuma tela mostra. Isso e o que a
 // tela nova precisa: as etiquetas do produto, disponiveis primeiro.
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:estoque_qr/data/database.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -11,8 +12,11 @@ void main() {
   setUp(() => db = AppDatabase.forTesting(NativeDatabase.memory()));
   tearDown(() async => db.close());
 
-  Future<int> criar(String nome) =>
-      db.criarProduto(ProdutosCompanion.insert(nome: nome));
+  // Com estoque: o teste de ordenacao precisa consumir uma etiqueta, e a
+  // guarda de estoque negativo recusaria a baixa num produto zerado.
+  Future<int> criar(String nome) => db.criarProduto(
+        ProdutosCompanion.insert(nome: nome, quantidadeAtual: const Value(50)),
+      );
 
   group('listarEtiquetasDoProduto', () {
     test('produto sem etiqueta devolve lista vazia', () async {

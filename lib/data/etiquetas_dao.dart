@@ -140,6 +140,26 @@ extension EtiquetasDao on AppDatabase {
   /// Disponível é `usadaEm == null`. Recusa com [VinculoInvalido] se o produto
   /// não existir.
   Future<List<Etiqueta>> listarEtiquetasDoProduto(int produtoId) async {
-    throw UnimplementedError('listarEtiquetasDoProduto');
+    final produto = await (select(produtos)
+          ..where((p) => p.id.equals(produtoId)))
+        .getSingleOrNull();
+    if (produto == null) {
+      throw VinculoInvalido('produto $produtoId não existe');
+    }
+
+    final etiquetasList = await (select(etiquetas)
+          ..where((t) => t.produtoId.equals(produtoId)))
+        .get();
+
+    etiquetasList.sort((a, b) {
+      if (a.usadaEm == null && b.usadaEm != null) return -1;
+      if (a.usadaEm != null && b.usadaEm == null) return 1;
+      if (a.usadaEm == null && b.usadaEm == null) {
+        return a.codigo.compareTo(b.codigo);
+      }
+      return a.usadaEm!.compareTo(b.usadaEm!);
+    });
+
+    return etiquetasList;
   }
 }

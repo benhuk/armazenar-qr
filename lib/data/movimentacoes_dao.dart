@@ -159,6 +159,17 @@ extension MovimentacoesDao on AppDatabase {
   Future<List<MovimentacaoComProduto>> listarMovimentacoesDetalhadas({
     int? produtoId,
   }) async {
-    throw UnimplementedError('listarMovimentacoesDetalhadas');
+    // Nome diferente do getter da tabela: `produtos` aqui o esconderia, e
+    // qualquer select(produtos) futuro neste método pararia de compilar.
+    final todos = await listarProdutos();
+    final nomePorId = {for (final p in todos) p.id: p.nome};
+
+    final movimentacoes = await listarMovimentacoes(produtoId: produtoId);
+    final detalhadas = movimentacoes.map((m) => MovimentacaoComProduto(
+          movimentacao: m,
+          nomeProduto: nomePorId[m.produtoId] ?? 'Produto removido',
+        )).toList();
+
+    return detalhadas;
   }
 }
