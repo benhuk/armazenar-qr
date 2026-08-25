@@ -5,7 +5,8 @@ import 'data/database.dart';
 import 'screens/backup_screen.dart';
 import 'screens/cadastro_produto_screen.dart';
 import 'screens/estoque_screen.dart';
-import 'screens/gerar_etiquetas_screen.dart';
+import 'screens/etiquetas_avulsas_screen.dart';
+import 'screens/etiquetas_caixa_screen.dart';
 import 'screens/historico_screen.dart';
 import 'screens/scanner_screen.dart';
 
@@ -66,10 +67,19 @@ class HomeScreen extends StatelessWidget {
           ),
           _MenuCard(
             icon: Icons.label_outline,
-            titulo: 'Gerar etiquetas',
+            titulo: 'Etiquetas por unidade',
             onTap: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const GerarEtiquetasScreen()),
+              MaterialPageRoute(
+                  builder: (_) => const EtiquetasAvulsasScreen()),
+            ),
+          ),
+          _MenuCard(
+            icon: Icons.inventory_2_outlined,
+            titulo: 'Etiquetas por caixa',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const EtiquetasCaixaScreen()),
             ),
           ),
           _MenuCard(
