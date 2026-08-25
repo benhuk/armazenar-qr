@@ -189,7 +189,23 @@ class AppDatabase extends _$AppDatabase {
     required String tipo,
     required int quantidade,
   }) {
-    throw UnimplementedError('calcularNovaQuantidade');
+    if (quantidade <= 0) {
+      throw MovimentacaoInvalida('Quantidade deve ser maior que zero');
+    }
+
+    if (tipo != 'entrada' && tipo != 'saida') {
+      throw MovimentacaoInvalida('Tipo de movimentação inválido');
+    }
+
+    final novaQuantidade = tipo == 'entrada'
+        ? estoqueAtual + quantidade
+        : estoqueAtual - quantidade;
+
+    if (novaQuantidade < 0) {
+      throw MovimentacaoInvalida('Não pode deixar o estoque negativo');
+    }
+
+    return novaQuantidade;
   }
 
   // --- Histórico ------------------------------------------------------
