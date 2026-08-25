@@ -47,10 +47,38 @@ void main() {
     return db;
   }
 
-  test('sobe o schemaVersion para 2', () async {
+  test('sobe o schemaVersion para o atual', () async {
     final db = await abrirEMigrar();
     addTearDown(db.close);
-    expect(sqlite.select('PRAGMA user_version;').single.values.single, 2);
+    expect(sqlite.select('PRAGMA user_version;').single.values.single,
+        db.schemaVersion);
+  });
+
+  test('v1 ganha a coluna usada_em, nula (etiqueta ainda disponivel)', () async {
+    // `usada_em` chegou na v3. Migrando direto da v1, ela nao pode ser copiada
+    // da tabela antiga — tem que entrar como coluna nova.
+    sqlite.execute(
+      "INSERT INTO etiquetas (codigo, vinculado, produto_id, criado_em) "
+      "VALUES ('PRD-000001', 1, 1, 0);",
+    );
+
+    final db = await abrirEMigrar();
+    addTearDown(db.close);
+
+    final etiqueta = await db.select(db.etiquetas).getSingle();
+    expect(etiqueta.usadaEm, isNull);
+
+    // e continua valendo por uma baixa
+    await db.registrarMovimentacao(
+        produtoId: 1, tipo: 'entrada', quantidade: 5);
+    final produto = await db.darBaixaPorCodigo('PRD-000001', 1);
+    expect(produto.quantidadeAtual, 4);
+
+    // mas so por uma
+    await expectLater(
+      db.darBaixaPorCodigo('PRD-000001', 1),
+      throwsA(isA<VinculoInvalido>()),
+    );
   });
 
   test('preserva a etiqueta que ja tinha produto', () async {

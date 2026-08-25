@@ -53,6 +53,9 @@ class Etiquetas extends Table {
   // Etiqueta so existe atrelada a um produto: obrigatorio, nao anulavel.
   IntColumn get produtoId => integer().references(Produtos, #id)();
   DateTimeColumn get criadoEm => dateTime().withDefault(currentDateAndTime)();
+  // Etiqueta vale por uma baixa so: aqui fica quando ela foi consumida.
+  // Nulo = ainda disponivel.
+  DateTimeColumn get usadaEm => dateTime().nullable()();
 }
 
 // ---------------------------------------------------------------------------
@@ -68,7 +71,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -81,7 +84,16 @@ class AppDatabase extends _$AppDatabase {
             // junto: com produto obrigatório, ela seria sempre true.
             await m.database
                 .customStatement('DELETE FROM etiquetas WHERE produto_id IS NULL');
-            await m.alterTable(TableMigration(etiquetas));
+            // `usada_em` (v3) não existe na v1: entra como coluna nova aqui,
+            // senão o TableMigration tenta copiá-la da tabela antiga. Ele usa
+            // a definição ATUAL da tabela, não a da v2.
+            await m.alterTable(
+              TableMigration(etiquetas, newColumns: [etiquetas.usadaEm]),
+            );
+          } else if (from < 3) {
+            // v3: etiqueta passa a valer por uma baixa só. As que já existem
+            // ficam com usada_em nulo, ou seja, continuam disponíveis.
+            await m.addColumn(etiquetas, etiquetas.usadaEm);
           }
         },
       );
@@ -265,34 +277,48 @@ class AppDatabase extends _$AppDatabase {
     });
   }
 
-  /// Dá baixa no produto dono da etiqueta [codigo].
+  /// Dá baixa no produto dono da etiqueta [codigo] e CONSOME a etiqueta.
   ///
-  /// É o que o scanner precisa: código lido vira movimentação de saída.
-  /// Compõe [buscarProdutoPorCodigo] e [registrarMovimentacao], que já são
-  /// testados — aqui só falta juntar os dois e devolver o produto ATUALIZADO,
-  /// com o estoque já descontado (a tela mostra esse número depois do bipe).
+  /// Cada etiqueta vale por uma baixa só: relida, é recusada. Sem isso o mesmo
+  /// QR na frente da câmera desconta o estoque repetidamente.
   ///
-  /// Recusa com [VinculoInvalido] se o código não existir, e com
-  /// [MovimentacaoInvalida] se a quantidade for inválida ou maior que o
-  /// estoque. Em qualquer recusa, nada é gravado.
+  /// Checar e marcar tem que ser atômico, junto com a movimentação: se a baixa
+  /// for recusada (estoque insuficiente, quantidade inválida), a etiqueta
+  /// continua valendo — seria perverso queimá-la numa operação que não
+  /// aconteceu.
+  ///
+  /// Recusa com [VinculoInvalido] se o código não existir ou já tiver sido
+  /// usado, e com [MovimentacaoInvalida] se a quantidade for inválida ou maior
+  /// que o estoque.
   Future<Produto> darBaixaPorCodigo(
     String codigo,
     int quantidade, {
     String? observacao,
   }) async {
-    final produto = await buscarProdutoPorCodigo(codigo);
-    if (produto == null) {
-      throw VinculoInvalido('Código $codigo não existe');
-    }
+    return transaction(() async {
+      final etiqueta = await (select(etiquetas)
+            ..where((t) => t.codigo.equals(codigo)))
+          .getSingleOrNull();
+      if (etiqueta == null) {
+        throw VinculoInvalido('código $codigo não existe');
+      }
+      if (etiqueta.usadaEm != null) {
+        throw VinculoInvalido('etiqueta $codigo já foi utilizada');
+      }
 
-    await registrarMovimentacao(
-      produtoId: produto.id,
-      tipo: 'saida',
-      quantidade: quantidade,
-      observacao: observacao,
-    );
+      await registrarMovimentacao(
+        produtoId: etiqueta.produtoId,
+        tipo: 'saida',
+        quantidade: quantidade,
+        observacao: observacao,
+      );
 
-    return (select(produtos)..where((p) => p.id.equals(produto.id))).getSingle();
+      await (update(etiquetas)..where((t) => t.codigo.equals(codigo)))
+          .write(EtiquetasCompanion(usadaEm: Value(DateTime.now())));
+
+      return (select(produtos)..where((p) => p.id.equals(etiqueta.produtoId)))
+          .getSingle();
+    });
   }
 
   // --- Histórico ------------------------------------------------------

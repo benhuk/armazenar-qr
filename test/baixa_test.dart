@@ -137,5 +137,64 @@ void main() {
 
       expect(await estoqueDe(id), 5);
     });
+
+    test('a mesma etiqueta nao pode dar baixa duas vezes', () async {
+      final id = await criarProduto('Parafuso', estoque: 10);
+      final codigo = (await db.gerarLoteEtiquetas(1, id)).single;
+
+      await db.darBaixaPorCodigo(codigo, 1);
+
+      await expectLater(
+        db.darBaixaPorCodigo(codigo, 1),
+        throwsA(isA<VinculoInvalido>()),
+      );
+      expect(await estoqueDe(id), 9, reason: 'so a primeira leitura conta');
+      expect(await db.listarMovimentacoes(produtoId: id), hasLength(1));
+    });
+
+    test('cada etiqueta do lote vale por uma baixa', () async {
+      final id = await criarProduto('Parafuso', estoque: 10);
+      final codigos = await db.gerarLoteEtiquetas(3, id);
+
+      for (final c in codigos) {
+        await db.darBaixaPorCodigo(c, 1);
+      }
+
+      expect(await estoqueDe(id), 7);
+      expect(await db.listarMovimentacoes(produtoId: id), hasLength(3));
+    });
+
+    test('baixa recusada nao consome a etiqueta', () async {
+      // Se o estoque nao dava, a etiqueta continua valendo: seria perverso
+      // queimar a etiqueta numa operacao que nao aconteceu.
+      final id = await criarProduto('Parafuso', estoque: 2);
+      final codigo = (await db.gerarLoteEtiquetas(1, id)).single;
+
+      await expectLater(
+        db.darBaixaPorCodigo(codigo, 5),
+        throwsA(isA<MovimentacaoInvalida>()),
+      );
+
+      final produto = await db.darBaixaPorCodigo(codigo, 2);
+      expect(produto.quantidadeAtual, 0);
+    });
+
+    test('duas leituras simultaneas da mesma etiqueta: so uma vence', () async {
+      // Checar `usadaEm` e gravar tem que ser atomico, ou o bipe duplo passa
+      // pelas duas guardas antes de qualquer uma marcar a etiqueta.
+      final id = await criarProduto('Parafuso', estoque: 10);
+      final codigo = (await db.gerarLoteEtiquetas(1, id)).single;
+
+      final desfechos = await Future.wait([
+        db.darBaixaPorCodigo(codigo, 1).then((_) => 'ok').catchError(
+            (Object e) => e is VinculoInvalido ? 'recusado' : 'erro'),
+        db.darBaixaPorCodigo(codigo, 1).then((_) => 'ok').catchError(
+            (Object e) => e is VinculoInvalido ? 'recusado' : 'erro'),
+      ]);
+
+      expect(desfechos.where((d) => d == 'ok'), hasLength(1));
+      expect(await estoqueDe(id), 9);
+      expect(await db.listarMovimentacoes(produtoId: id), hasLength(1));
+    });
   });
 }
