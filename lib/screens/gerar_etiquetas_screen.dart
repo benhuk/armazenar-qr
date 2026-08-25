@@ -15,6 +15,7 @@ class GerarEtiquetasScreen extends StatefulWidget {
 class _GerarEtiquetasScreenState extends State<GerarEtiquetasScreen> {
   final _quantidadeController = TextEditingController(text: '20');
   bool _gerando = false;
+  int? _produtoId;
 
   @override
   void dispose() {
@@ -24,12 +25,23 @@ class _GerarEtiquetasScreenState extends State<GerarEtiquetasScreen> {
 
   Future<void> _gerarEImprimir() async {
     final quantidade = int.tryParse(_quantidadeController.text) ?? 0;
-    if (quantidade <= 0) return;
+    final produtoId = _produtoId;
+    if (quantidade <= 0 || produtoId == null) return;
 
     setState(() => _gerando = true);
 
     final db = context.read<AppDatabase>();
-    final codigos = await db.gerarLoteEtiquetas(quantidade);
+    final List<String> codigos;
+    try {
+      codigos = await db.gerarLoteEtiquetas(quantidade, produtoId);
+    } on VinculoInvalido catch (e) {
+      if (mounted) {
+        setState(() => _gerando = false);
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.motivo)));
+      }
+      return;
+    }
 
     final doc = pw.Document();
     doc.addPage(
@@ -75,6 +87,30 @@ class _GerarEtiquetasScreenState extends State<GerarEtiquetasScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Etiqueta só existe atrelada a um produto: sem produto escolhido,
+            // não há o que gerar.
+            StreamBuilder<List<Produto>>(
+              stream: context.read<AppDatabase>().watchProdutos(),
+              builder: (context, snapshot) {
+                final produtos = snapshot.data ?? const <Produto>[];
+                if (produtos.isEmpty) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Text('Cadastre um produto antes de gerar etiquetas.'),
+                  );
+                }
+                return DropdownButtonFormField<int>(
+                  initialValue: _produtoId,
+                  decoration: const InputDecoration(labelText: 'Produto'),
+                  items: [
+                    for (final p in produtos)
+                      DropdownMenuItem(value: p.id, child: Text(p.nome)),
+                  ],
+                  onChanged: (v) => setState(() => _produtoId = v),
+                );
+              },
+            ),
+            const SizedBox(height: 16),
             TextField(
               controller: _quantidadeController,
               keyboardType: TextInputType.number,
@@ -84,7 +120,8 @@ class _GerarEtiquetasScreenState extends State<GerarEtiquetasScreen> {
             ),
             const SizedBox(height: 16),
             FilledButton.icon(
-              onPressed: _gerando ? null : _gerarEImprimir,
+              onPressed:
+                  _gerando || _produtoId == null ? null : _gerarEImprimir,
               icon: const Icon(Icons.print),
               label: Text(_gerando ? 'Gerando...' : 'Gerar e imprimir'),
             ),

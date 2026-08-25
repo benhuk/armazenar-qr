@@ -81,81 +81,18 @@ class AppDatabase extends _$AppDatabase {
 
   // --- Etiquetas --------------------------------------------------------
 
-  /// Gera [quantidade] códigos únicos e livres, prontos pra imprimir.
+  /// Gera [quantidade] etiquetas para o produto [produtoId], prontas pra
+  /// imprimir.
   ///
-  /// Formato `PRD-` + 6 dígitos com zeros à esquerda. Continua a numeração a
-  /// partir do maior número já existente na tabela, ignorando códigos cujo
-  /// sufixo não seja numérico. Devolve os códigos gerados, na ordem.
-  Future<List<String>> gerarLoteEtiquetas(int quantidade) async {
-    if (quantidade <= 0) return [];
-
-    // Tudo numa transação: entre ler o maior número e gravar o lote não pode
-    // entrar outra geração, ou os dois lotes colidiriam no índice UNIQUE.
-    return transaction(() async {
-      // MAX no banco em vez de carregar a tabela: o GLOB garante que só
-      // códigos com 6 dígitos entrem na conta, então o sufixo não numérico é
-      // ignorado sem precisar filtrar em Dart.
-      final linha = await customSelect(
-        "SELECT MAX(CAST(SUBSTR(codigo, 5) AS INTEGER)) AS maior FROM etiquetas "
-        "WHERE codigo GLOB 'PRD-[0-9][0-9][0-9][0-9][0-9][0-9]'",
-        readsFrom: {etiquetas},
-      ).getSingle();
-      final proximo = (linha.read<int?>('maior') ?? 0) + 1;
-
-      final codigos = [
-        for (var i = 0; i < quantidade; i++)
-          'PRD-${(proximo + i).toString().padLeft(6, '0')}',
-      ];
-
-      // batch = uma única ida ao banco, e all-or-nothing: se um insert falhar,
-      // nenhum código do lote fica gravado.
-      await batch((b) => b.insertAll(
-            etiquetas,
-            [for (final c in codigos) EtiquetasCompanion.insert(codigo: c)],
-          ));
-
-      return codigos;
-    });
-  }
-
-  /// Etiquetas já geradas mas ainda não vinculadas a um produto.
-  Future<List<Etiqueta>> listarEtiquetasLivres() =>
-      (select(etiquetas)..where((t) => t.vinculado.equals(false))).get();
-
-  /// Vincula uma etiqueta livre a um produto recém-cadastrado.
+  /// Etiqueta só existe atrelada a um produto: as geradas aqui já nascem
+  /// vinculadas. Formato `PRD-` + 6 dígitos com zeros à esquerda. A numeração é
+  /// global — continua a partir do maior número existente na tabela inteira,
+  /// não por produto —, ignorando códigos de sufixo não numérico.
   ///
-  /// Recusa com [VinculoInvalido] se o código não existir, se o produto não
-  /// existir, ou se a etiqueta já estiver vinculada — inclusive ao mesmo
-  /// produto. Em caso de recusa nada é gravado.
-  Future<void> vincularEtiqueta(String codigo, int produtoId) async {
-    // Checar `vinculado` e gravar tem que ser atômico: sem a transação, duas
-    // chamadas simultâneas leem a etiqueta ainda livre, as duas passam na
-    // guarda de dupla-vinculação, e a segunda sobrescreve a primeira.
-    await transaction(() async {
-      final etiqueta = await (select(etiquetas)
-            ..where((t) => t.codigo.equals(codigo)))
-          .getSingleOrNull();
-      if (etiqueta == null) {
-        throw VinculoInvalido('código $codigo não existe');
-      }
-      if (etiqueta.vinculado) {
-        throw VinculoInvalido('etiqueta $codigo já está vinculada');
-      }
-
-      final produto = await (select(produtos)
-            ..where((p) => p.id.equals(produtoId)))
-          .getSingleOrNull();
-      if (produto == null) {
-        throw VinculoInvalido('produto $produtoId não existe');
-      }
-
-      await (update(etiquetas)..where((t) => t.codigo.equals(codigo))).write(
-        EtiquetasCompanion(
-          vinculado: const Value(true),
-          produtoId: Value(produtoId),
-        ),
-      );
-    });
+  /// Recusa com [VinculoInvalido] se o produto não existir; nesse caso nada é
+  /// gravado. Devolve os códigos gerados, na ordem.
+  Future<List<String>> gerarLoteEtiquetas(int quantidade, int produtoId) async {
+    throw UnimplementedError('gerarLoteEtiquetas');
   }
 
   // --- Scanner / baixa ----------------------------------------------------
