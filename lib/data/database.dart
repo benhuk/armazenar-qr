@@ -12,6 +12,15 @@ class MovimentacaoInvalida implements Exception {
   String toString() => 'MovimentacaoInvalida: $motivo';
 }
 
+/// Vínculo recusado: código inexistente, produto inexistente ou etiqueta que
+/// já está vinculada a outro produto.
+class VinculoInvalido implements Exception {
+  VinculoInvalido(this.motivo);
+  final String motivo;
+  @override
+  String toString() => 'VinculoInvalido: $motivo';
+}
+
 // ---------------------------------------------------------------------------
 // Tabelas
 // ---------------------------------------------------------------------------
@@ -114,25 +123,22 @@ class AppDatabase extends _$AppDatabase {
       (select(etiquetas)..where((t) => t.vinculado.equals(false))).get();
 
   /// Vincula uma etiqueta livre a um produto recém-cadastrado.
-  Future<void> vincularEtiqueta(String codigo, int produtoId) =>
-      (update(etiquetas)..where((t) => t.codigo.equals(codigo))).write(
-        EtiquetasCompanion(
-          vinculado: const Value(true),
-          produtoId: Value(produtoId),
-        ),
-      );
+  ///
+  /// Recusa com [VinculoInvalido] se o código não existir, se o produto não
+  /// existir, ou se a etiqueta já estiver vinculada — inclusive ao mesmo
+  /// produto. Em caso de recusa nada é gravado.
+  Future<void> vincularEtiqueta(String codigo, int produtoId) async {
+    throw UnimplementedError('vincularEtiqueta');
+  }
 
   // --- Scanner / baixa ----------------------------------------------------
 
   /// Busca o produto vinculado a um código escaneado.
+  ///
+  /// Devolve `null` se o código não existir ou se a etiqueta ainda estiver
+  /// livre (impressa, mas não vinculada a nenhum produto).
   Future<Produto?> buscarProdutoPorCodigo(String codigo) async {
-    final etiqueta = await (select(etiquetas)
-          ..where((t) => t.codigo.equals(codigo)))
-        .getSingleOrNull();
-    if (etiqueta?.produtoId == null) return null;
-
-    return (select(produtos)..where((p) => p.id.equals(etiqueta!.produtoId!)))
-        .getSingleOrNull();
+    throw UnimplementedError('buscarProdutoPorCodigo');
   }
 
   /// Dá baixa (ou entrada) e registra a movimentação, tudo em uma transação.
