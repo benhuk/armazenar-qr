@@ -45,6 +45,10 @@ class Etiquetas extends Table {
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(driftDatabase(name: 'estoque_qr'));
 
+  /// Construtor para testes: recebe um executor em memoria
+  /// (`NativeDatabase.memory()`), sem tocar em disco nem no path_provider.
+  AppDatabase.forTesting(super.executor);
+
   @override
   int get schemaVersion => 1;
 
