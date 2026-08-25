@@ -48,7 +48,7 @@ class BackupService {
       final dados = jsonDecode(json) as Map<String, dynamic>;
 
       if (dados['versao'] != versaoSuportada) {
-        throw BackupInvalido('Versão desconhecida');
+        throw BackupInvalido('Versão desconhecida: ${dados['versao']}');
       }
 
       if (!dados.containsKey('produtos') || !dados.containsKey('movimentacoes')) {
@@ -66,6 +66,9 @@ class BackupService {
         listaMovimentacoes: movimentacoes,
       );
     } catch (e) {
+      if (e is BackupInvalido) {
+        rethrow;
+      }
       throw BackupInvalido('JSON malformado');
     }
   }

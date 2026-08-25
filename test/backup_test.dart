@@ -119,8 +119,11 @@ void main() {
       final json = jsonEncode({'versao': 99, 'produtos': [], 'movimentacoes': []});
       await expectLater(
         backup.importarJson(json),
-        throwsA(isA<BackupInvalido>()
-            .having((e) => e.motivo, 'motivo', contains('vers'))),
+        throwsA(isA<BackupInvalido>().having(
+          (e) => e.motivo,
+          'motivo',
+          matches(RegExp('vers', caseSensitive: false)),
+        )),
       );
     });
 
