@@ -7,6 +7,15 @@ import '../data/database.dart';
 // Permissão de câmera: verificado no aparelho — o mobile_scanner já mostra o
 // diálogo do sistema ao abrir esta tela, não precisa de permission_handler.
 
+/// Resultado da última leitura, para mostrar na tela parada.
+class _Leitura {
+  const _Leitura({required this.ok, required this.mensagem, this.produto});
+
+  final bool ok;
+  final String mensagem;
+  final Produto? produto;
+}
+
 class ScannerScreen extends StatefulWidget {
   const ScannerScreen({super.key});
 
@@ -16,10 +25,8 @@ class ScannerScreen extends StatefulWidget {
 
 class _ScannerScreenState extends State<ScannerScreen> {
   final MobileScannerController _controller = MobileScannerController();
-  bool _processando = false;
   bool _lanterna = false;
-  String? _ultimoCodigo;
-  DateTime? _ultimaLeitura;
+  _Leitura? _leitura;
 
   @override
   void dispose() {
@@ -27,133 +34,121 @@ class _ScannerScreenState extends State<ScannerScreen> {
     super.dispose();
   }
 
+  /// Cada etiqueta vale por uma unidade, então não há o que perguntar: lê,
+  /// baixa 1 e PARA. Continuar lendo com o mesmo QR na frente da câmera era o
+  /// que causava baixas repetidas.
   Future<void> _aoDetectar(BarcodeCapture capture) async {
-    if (_processando) return;
+    if (_leitura != null) return; // ja parou, aguardando "Escanear outra"
     final codigo = capture.barcodes.first.rawValue;
     if (codigo == null) return;
 
-    // O scanner le em fluxo continuo: depois de confirmar, o mesmo QR ainda
-    // esta na frente da camera e seria relido no ato. Ignora repeticao do
-    // mesmo codigo por alguns segundos — tempo de tirar a etiqueta do quadro.
-    final agora = DateTime.now();
-    if (codigo == _ultimoCodigo &&
-        _ultimaLeitura != null &&
-        agora.difference(_ultimaLeitura!) < const Duration(seconds: 3)) {
-      return;
-    }
-    _ultimoCodigo = codigo;
-    _ultimaLeitura = agora;
+    await _controller.stop();
+    if (!mounted) return;
+    setState(() => _leitura =
+        const _Leitura(ok: true, mensagem: 'Processando...'));
 
-    setState(() => _processando = true);
     final db = context.read<AppDatabase>();
-    final produto = await db.buscarProdutoPorCodigo(codigo);
-
-    if (!mounted) return;
-
-    if (produto == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Código não encontrado.')),
+    late final _Leitura resultado;
+    try {
+      final produto = await db.darBaixaPorCodigo(codigo, 1);
+      resultado = _Leitura(
+        ok: true,
+        mensagem: 'Baixa de 1 registrada.',
+        produto: produto,
       );
-    } else {
-      final quantidade = await _perguntarQuantidade(produto);
-      if (quantidade != null && mounted) {
-        await _darBaixa(db, codigo, quantidade);
-      }
+    } on MovimentacaoInvalida catch (e) {
+      resultado = _Leitura(ok: false, mensagem: e.motivo);
+    } on VinculoInvalido catch (e) {
+      resultado = _Leitura(ok: false, mensagem: e.motivo);
     }
 
-    // recomeca a contagem a partir do fim do processamento, nao do inicio
-    _ultimaLeitura = DateTime.now();
-    if (mounted) setState(() => _processando = false);
+    if (mounted) setState(() => _leitura = resultado);
   }
 
-  /// Modal de confirmação: mostra o produto e o estoque atual, e deixa ajustar
-  /// a quantidade. Padrão 1, que é o caso comum de bipar item a item.
-  Future<int?> _perguntarQuantidade(Produto produto) {
-    final controller = TextEditingController(text: '1');
-    return showDialog<int>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(produto.nome),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Em estoque: ${produto.quantidadeAtual} ${produto.unidade}'),
-            const SizedBox(height: 12),
-            TextField(
-              controller: controller,
-              autofocus: true,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Dar baixa de'),
-              onSubmitted: (v) =>
-                  Navigator.pop(dialogContext, int.tryParse(v)),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(
-              dialogContext,
-              int.tryParse(controller.text),
-            ),
-            child: const Text('Confirmar'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _darBaixa(AppDatabase db, String codigo, int quantidade) async {
-    final mensagem = await () async {
-      try {
-        final atualizado = await db.darBaixaPorCodigo(codigo, quantidade);
-        return 'Baixa de $quantidade em ${atualizado.nome}. '
-            'Restam ${atualizado.quantidadeAtual} ${atualizado.unidade}.';
-      } on MovimentacaoInvalida catch (e) {
-        return e.motivo;
-      } on VinculoInvalido catch (e) {
-        return e.motivo;
-      }
-    }();
-
-    if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(mensagem)));
+  Future<void> _escanearOutra() async {
+    setState(() => _leitura = null);
+    await _controller.start();
   }
 
   @override
   Widget build(BuildContext context) {
+    final leitura = _leitura;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Escanear'),
         actions: [
           // Etiqueta em prateleira costuma estar na sombra.
-          IconButton(
-            tooltip: _lanterna ? 'Desligar lanterna' : 'Ligar lanterna',
-            icon: Icon(_lanterna ? Icons.flashlight_on : Icons.flashlight_off),
-            onPressed: () async {
-              await _controller.toggleTorch();
-              if (mounted) setState(() => _lanterna = !_lanterna);
-            },
-          ),
+          if (leitura == null)
+            IconButton(
+              tooltip: _lanterna ? 'Desligar lanterna' : 'Ligar lanterna',
+              icon: Icon(_lanterna ? Icons.flashlight_on : Icons.flashlight_off),
+              onPressed: () async {
+                await _controller.toggleTorch();
+                if (mounted) setState(() => _lanterna = !_lanterna);
+              },
+            ),
         ],
       ),
-      body: Stack(
+      body: leitura == null ? _camera() : _resultado(leitura),
+    );
+  }
+
+  Widget _camera() => Stack(
         fit: StackFit.expand,
         children: [
           MobileScanner(controller: _controller, onDetect: _aoDetectar),
-          // Sem moldura nem instrução, a tela fica só preta e parece travada —
-          // não existe botão de disparo: a leitura é contínua.
+          // Sem moldura nem instrução a tela fica só preta e parece travada —
+          // não existe botão de disparo: a leitura é automática.
           const _MiraDoScanner(),
-          if (_processando)
-            const ColoredBox(
-              color: Color(0x66000000),
-              child: Center(child: CircularProgressIndicator()),
+        ],
+      );
+
+  Widget _resultado(_Leitura leitura) {
+    final cor = leitura.ok ? Colors.green.shade700 : Colors.red.shade700;
+    final produto = leitura.produto;
+
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Icon(
+            leitura.ok ? Icons.check_circle : Icons.error,
+            size: 88,
+            color: cor,
+          ),
+          const SizedBox(height: 24),
+          if (produto != null) ...[
+            Text(
+              produto.nome,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.headlineSmall,
             ),
+            const SizedBox(height: 8),
+            Text(
+              'Restam ${produto.quantidadeAtual} ${produto.unidade}',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(color: cor),
+            ),
+            const SizedBox(height: 8),
+          ],
+          Text(
+            leitura.mensagem,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyLarge,
+          ),
+          const SizedBox(height: 40),
+          FilledButton.icon(
+            onPressed: _escanearOutra,
+            icon: const Icon(Icons.qr_code_scanner),
+            label: const Text('Escanear outra'),
+          ),
+          const SizedBox(height: 12),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Concluir'),
+          ),
         ],
       ),
     );
