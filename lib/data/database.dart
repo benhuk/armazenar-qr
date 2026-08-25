@@ -69,6 +69,17 @@ class Etiquetas extends Table {
   IntColumn get unidades => integer().withDefault(const Constant(1))();
 }
 
+/// Uma movimentação com o nome do produto resolvido, para o histórico.
+class MovimentacaoComProduto {
+  const MovimentacaoComProduto({
+    required this.movimentacao,
+    required this.nomeProduto,
+  });
+
+  final Movimentacao movimentacao;
+  final String nomeProduto;
+}
+
 /// Quadro das etiquetas de um produto, para as telas de geração.
 class ResumoEtiquetas {
   const ResumoEtiquetas({

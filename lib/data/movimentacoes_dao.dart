@@ -150,4 +150,15 @@ extension MovimentacoesDao on AppDatabase {
     query.orderBy([(m) => OrderingTerm.desc(m.data)]);
     return query.get();
   }
+
+  /// Histórico com o nome do produto junto, para a tela não mostrar "#id".
+  ///
+  /// Usa [listarMovimentacoes] (que já ordena da mais recente para a mais
+  /// antiga e aceita o filtro) e casa cada movimentação com o nome do seu
+  /// produto. A ordem de [listarMovimentacoes] é preservada.
+  Future<List<MovimentacaoComProduto>> listarMovimentacoesDetalhadas({
+    int? produtoId,
+  }) async {
+    throw UnimplementedError('listarMovimentacoesDetalhadas');
+  }
 }

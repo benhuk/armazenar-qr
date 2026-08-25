@@ -133,4 +133,13 @@ extension EtiquetasDao on AppDatabase {
 
     return unidadesSemEtiqueta < 0 ? 0 : unidadesSemEtiqueta;
   }
+
+  /// Etiquetas de [produtoId], disponíveis primeiro e, dentro de cada grupo,
+  /// em ordem de código.
+  ///
+  /// Disponível é `usadaEm == null`. Recusa com [VinculoInvalido] se o produto
+  /// não existir.
+  Future<List<Etiqueta>> listarEtiquetasDoProduto(int produtoId) async {
+    throw UnimplementedError('listarEtiquetasDoProduto');
+  }
 }

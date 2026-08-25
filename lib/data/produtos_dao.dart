@@ -10,4 +10,15 @@ extension ProdutosDao on AppDatabase {
 
   Future<int> criarProduto(ProdutosCompanion produto) =>
       into(produtos).insert(produto);
+
+  /// Filtra [produtos] pelo [termo] digitado na busca.
+  ///
+  /// Função pura: a tela já recebe a lista pelo stream, aqui é só peneirar.
+  /// Casa com pedaço do nome OU da categoria, ignorando maiúsculas e espaços
+  /// nas pontas do termo. Termo vazio (ou só espaços) devolve a lista inteira.
+  /// Produto sem categoria não pode quebrar a busca. A ordem original é
+  /// preservada.
+  List<Produto> filtrarProdutos(List<Produto> produtos, String termo) {
+    throw UnimplementedError('filtrarProdutos');
+  }
 }
