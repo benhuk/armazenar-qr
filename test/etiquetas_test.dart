@@ -75,6 +75,27 @@ void main() {
       // a etiqueta continua livre
       expect(await db.listarEtiquetasLivres(), hasLength(1));
     });
+
+    test('dois vinculos simultaneos na mesma etiqueta: so um vence', () async {
+      // Checar `vinculado` e gravar tem que ser atomico. Sem transacao as duas
+      // chamadas leem a etiqueta ainda livre, as duas passam na guarda de
+      // dupla-vinculacao, e a segunda sobrescreve a primeira em silencio.
+      final codigo = (await db.gerarLoteEtiquetas(1)).single;
+      final primeiro = await criarProduto('Parafuso');
+      final segundo = await criarProduto('Prego');
+
+      final desfechos = await Future.wait([
+        db.vincularEtiqueta(codigo, primeiro).then((_) => 'ok').catchError(
+            (Object e) => e is VinculoInvalido ? 'recusado' : 'erro'),
+        db.vincularEtiqueta(codigo, segundo).then((_) => 'ok').catchError(
+            (Object e) => e is VinculoInvalido ? 'recusado' : 'erro'),
+      ]);
+
+      expect(desfechos.where((d) => d == 'ok'), hasLength(1),
+          reason: 'exatamente um vínculo pode vencer');
+      expect(desfechos.where((d) => d == 'recusado'), hasLength(1));
+      expect(await db.listarEtiquetasLivres(), isEmpty);
+    });
   });
 
   group('buscarProdutoPorCodigo', () {
