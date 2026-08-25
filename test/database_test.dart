@@ -77,5 +77,18 @@ void main() {
       final codigos = await db.gerarLoteEtiquetas(2);
       expect(codigos, ['PRD-000008', 'PRD-000009']);
     });
+
+    test('dois lotes simultaneos nao colidem', () async {
+      // A leitura do maior numero e a gravacao do lote tem que ser atomicas.
+      // Sem transacao, as duas chamadas leem o mesmo maximo, geram os mesmos
+      // codigos e a segunda viola a constraint UNIQUE.
+      final lotes = await Future.wait([
+        db.gerarLoteEtiquetas(5),
+        db.gerarLoteEtiquetas(5),
+      ]);
+
+      expect({...lotes[0], ...lotes[1]}, hasLength(10));
+      expect(await db.select(db.etiquetas).get(), hasLength(10));
+    });
   });
 }
