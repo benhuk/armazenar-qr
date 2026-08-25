@@ -1,0 +1,40 @@
+name: estoque_qr
+description: App de controle de estoque local com etiquetas QR Code.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # Banco de dados local
+  drift: ^2.34.2
+  drift_flutter: ^0.3.1
+  path_provider: ^2.1.6
+
+  # Scanner de QR Code
+  mobile_scanner: ^7.0.0
+
+  # Etiquetas (gerar QR + montar PDF + imprimir)
+  pdf: ^3.11.0
+  printing: ^5.13.0
+
+  # Permissões (câmera)
+  permission_handler: ^11.3.0
+
+  # Gerenciamento de estado
+  provider: ^6.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  drift_dev: ^2.20.0
+  build_runner: ^2.4.0
+
+flutter:
+  uses-material-design: true
