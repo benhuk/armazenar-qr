@@ -133,7 +133,7 @@ class AppDatabase extends _$AppDatabase {
   /// Função pura: `PRD-` seguido do número em 6 dígitos, com zeros à esquerda.
   /// Ex.: `1` vira `PRD-000001`; `12` vira `PRD-000012`.
   String formatarCodigo(int numero) {
-    throw UnimplementedError('formatarCodigo');
+    return 'PRD-${numero.toString().padLeft(6, '0')}';
   }
 
   // --- Scanner / baixa ----------------------------------------------------
