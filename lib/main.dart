@@ -7,6 +7,7 @@ import 'screens/cadastro_produto_screen.dart';
 import 'screens/estoque_screen.dart';
 import 'screens/etiquetas_avulsas_screen.dart';
 import 'screens/etiquetas_caixa_screen.dart';
+import 'screens/etiquetas_do_produto_screen.dart';
 import 'screens/historico_screen.dart';
 import 'screens/scanner_screen.dart';
 
@@ -80,6 +81,15 @@ class HomeScreen extends StatelessWidget {
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const EtiquetasCaixaScreen()),
+            ),
+          ),
+          _MenuCard(
+            icon: Icons.qr_code_2,
+            titulo: 'Etiquetas do produto',
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (_) => const EtiquetasDoProdutoScreen()),
             ),
           ),
           _MenuCard(

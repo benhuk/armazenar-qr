@@ -19,6 +19,14 @@ extension ProdutosDao on AppDatabase {
   /// Produto sem categoria não pode quebrar a busca. A ordem original é
   /// preservada.
   List<Produto> filtrarProdutos(List<Produto> produtos, String termo) {
-    throw UnimplementedError('filtrarProdutos');
+    final alvo = termo.trim().toLowerCase();
+    if (alvo.isEmpty) return produtos;
+
+    return produtos.where((produto) {
+      final peloNome = produto.nome.toLowerCase().contains(alvo);
+      final pelaCategoria =
+          produto.categoria?.toLowerCase().contains(alvo) ?? false;
+      return peloNome || pelaCategoria;
+    }).toList();
   }
 }

@@ -12,8 +12,8 @@ class HistoricoScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Histórico')),
-      body: FutureBuilder<List<Movimentacao>>(
-        future: db.listarMovimentacoes(),
+      body: FutureBuilder<List<MovimentacaoComProduto>>(
+        future: db.listarMovimentacoesDetalhadas(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
@@ -25,7 +25,8 @@ class HistoricoScreen extends StatelessWidget {
           return ListView.builder(
             itemCount: movimentacoes.length,
             itemBuilder: (context, index) {
-              final m = movimentacoes[index];
+              final detalhe = movimentacoes[index];
+              final m = detalhe.movimentacao;
               final sinal = m.tipo == 'saida' ? '-' : '+';
               return ListTile(
                 leading: Icon(
@@ -33,9 +34,9 @@ class HistoricoScreen extends StatelessWidget {
                       ? Icons.remove_circle_outline
                       : Icons.add_circle_outline,
                 ),
-                // TODO: trocar "produto #id" pelo nome (join com produtos)
-                title: Text('$sinal${m.quantidade} — produto #${m.produtoId}'),
-                subtitle: Text(m.data.toString()),
+                title: Text('$sinal${m.quantidade} — ${detalhe.nomeProduto}'),
+                subtitle: Text(_quando(m.data) +
+                    (m.observacao == null ? '' : ' · ${m.observacao}')),
               );
             },
           );
@@ -43,4 +44,10 @@ class HistoricoScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Data legível, sem depender do pacote intl.
+String _quando(DateTime d) {
+  String dois(int n) => n.toString().padLeft(2, '0');
+  return '${dois(d.day)}/${dois(d.month)}/${d.year} ${dois(d.hour)}:${dois(d.minute)}';
 }
