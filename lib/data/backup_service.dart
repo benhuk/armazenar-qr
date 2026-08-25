@@ -43,20 +43,30 @@ class BackupService {
   /// apagado. Recusa com [BackupInvalido] quando o texto não é JSON válido,
   /// quando não é um objeto com `produtos` e `movimentacoes`, ou quando
   /// `versao` é diferente de [versaoSuportada].
-  ///
-  /// Para gravar, chame:
-  ///
-  /// ```dart
-  /// await _db.restaurarBackup(
-  ///   listaProdutos: <Produto>[...],
-  ///   listaMovimentacoes: <Movimentacao>[...],
-  /// );
-  /// ```
-  ///
-  /// `Produto.fromJson(Map<String, dynamic>)` e
-  /// `Movimentacao.fromJson(Map<String, dynamic>)` fazem o caminho inverso do
-  /// `toJson()` usado em [exportarJson].
-  Future<void> importarJson(String conteudo) async {
-    throw UnimplementedError('importarJson');
+  Future<void> importarJson(String json) async {
+    try {
+      final dados = jsonDecode(json) as Map<String, dynamic>;
+
+      if (dados['versao'] != versaoSuportada) {
+        throw BackupInvalido('Versão desconhecida');
+      }
+
+      if (!dados.containsKey('produtos') || !dados.containsKey('movimentacoes')) {
+        throw BackupInvalido('Estrutura inesperada');
+      }
+
+      final produtosJson = dados['produtos'] as List<dynamic>;
+      final movimentacoesJson = dados['movimentacoes'] as List<dynamic>;
+
+      final produtos = produtosJson.map((p) => Produto.fromJson(p)).toList();
+      final movimentacoes = movimentacoesJson.map((m) => Movimentacao.fromJson(m)).toList();
+
+      await _db.restaurarBackup(
+        listaProdutos: produtos,
+        listaMovimentacoes: movimentacoes,
+      );
+    } catch (e) {
+      throw BackupInvalido('JSON malformado');
+    }
   }
 }
