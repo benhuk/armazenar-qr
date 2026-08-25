@@ -80,7 +80,37 @@ extension EtiquetasDao on AppDatabase {
   ///
   /// Recusa com [VinculoInvalido] se o produto não existir.
   Future<ResumoEtiquetas> resumoEtiquetas(int produtoId) async {
-    throw UnimplementedError('resumoEtiquetas');
+    final produto = await (select(produtos)
+          ..where((p) => p.id.equals(produtoId)))
+        .getSingleOrNull();
+    if (produto == null) {
+      throw VinculoInvalido('produto $produtoId não existe');
+    }
+
+    // Nome diferente do getter da tabela de propósito: `etiquetas` aqui
+    // esconderia `select(etiquetas)` na própria linha que o usa.
+    final linhas = await (select(etiquetas)
+          ..where((t) => t.produtoId.equals(produtoId)))
+        .get();
+
+    int disponiveis = 0;
+    int usadas = 0;
+    int unidadesCobertas = 0;
+
+    for (final etiqueta in linhas) {
+      if (etiqueta.usadaEm == null) {
+        disponiveis++;
+        unidadesCobertas += etiqueta.unidades;
+      } else {
+        usadas++;
+      }
+    }
+
+    return ResumoEtiquetas(
+      disponiveis: disponiveis,
+      usadas: usadas,
+      unidadesCobertas: unidadesCobertas,
+    );
   }
 
   /// Quanto do estoque de [produtoId] ainda não tem etiqueta.
@@ -91,6 +121,16 @@ extension EtiquetasDao on AppDatabase {
   ///
   /// Recusa com [VinculoInvalido] se o produto não existir.
   Future<int> unidadesSemEtiqueta(int produtoId) async {
-    throw UnimplementedError('unidadesSemEtiqueta');
+    final produto = await (select(produtos)
+          ..where((p) => p.id.equals(produtoId)))
+        .getSingleOrNull();
+    if (produto == null) {
+      throw VinculoInvalido('produto $produtoId não existe');
+    }
+
+    final resumo = await resumoEtiquetas(produtoId);
+    final unidadesSemEtiqueta = produto.quantidadeAtual - resumo.unidadesCobertas;
+
+    return unidadesSemEtiqueta < 0 ? 0 : unidadesSemEtiqueta;
   }
 }
