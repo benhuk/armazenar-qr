@@ -50,8 +50,8 @@ class Movimentacoes extends Table {
 class Etiquetas extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get codigo => text().unique()();
-  BoolColumn get vinculado => boolean().withDefault(const Constant(false))();
-  IntColumn get produtoId => integer().nullable().references(Produtos, #id)();
+  // Etiqueta so existe atrelada a um produto: obrigatorio, nao anulavel.
+  IntColumn get produtoId => integer().references(Produtos, #id)();
   DateTimeColumn get criadoEm => dateTime().withDefault(currentDateAndTime)();
 }
 
@@ -68,7 +68,23 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onCreate: (m) => m.createAll(),
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            // v2: etiqueta só existe atrelada a um produto. As livres
+            // (produto_id NULL) perderam sentido e são descartadas — sem isso
+            // a coluna não pode virar NOT NULL. A coluna `vinculado` sai
+            // junto: com produto obrigatório, ela seria sempre true.
+            await m.database
+                .customStatement('DELETE FROM etiquetas WHERE produto_id IS NULL');
+            await m.alterTable(TableMigration(etiquetas));
+          }
+        },
+      );
 
   // --- Produtos -------------------------------------------------------
 
@@ -116,11 +132,7 @@ class AppDatabase extends _$AppDatabase {
             etiquetas,
             [
               for (final c in codigos)
-                EtiquetasCompanion.insert(
-                  codigo: c,
-                  produtoId: Value(produtoId),
-                  vinculado: const Value(true),
-                ),
+                EtiquetasCompanion.insert(codigo: c, produtoId: produtoId),
             ],
           ));
 
@@ -138,20 +150,18 @@ class AppDatabase extends _$AppDatabase {
 
   // --- Scanner / baixa ----------------------------------------------------
 
-  /// Busca o produto vinculado a um código escaneado.
+  /// Busca o produto dono de um código escaneado.
   ///
-  /// Devolve `null` se o código não existir ou se a etiqueta ainda estiver
-  /// livre (impressa, mas não vinculada a nenhum produto).
+  /// Devolve `null` só quando o código não existe: se a etiqueta existe, ela
+  /// tem produto — o schema garante.
   Future<Produto?> buscarProdutoPorCodigo(String codigo) async {
     final etiqueta = await (select(etiquetas)
           ..where((t) => t.codigo.equals(codigo)))
         .getSingleOrNull();
+    if (etiqueta == null) return null;
 
-    if (etiqueta == null || !etiqueta.vinculado) {
-      return null;
-    }
-
-    return (select(produtos)..where((p) => p.id.equals(etiqueta.produtoId!))).getSingleOrNull();
+    return (select(produtos)..where((p) => p.id.equals(etiqueta.produtoId)))
+        .getSingleOrNull();
   }
 
   /// Dá baixa (ou entrada) e registra a movimentação, tudo em uma transação.

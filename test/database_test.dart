@@ -3,7 +3,6 @@
 //
 // Regra nova: etiqueta so existe atrelada a um produto. Nao ha mais etiqueta
 // livre — o produto e obrigatorio no momento da criacao.
-import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:estoque_qr/data/database.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -18,10 +17,9 @@ void main() {
       db.criarProduto(ProdutosCompanion.insert(nome: nome));
 
   Future<void> inserirEtiquetaManual(String codigo, int produtoId) =>
-      db.into(db.etiquetas).insert(EtiquetasCompanion.insert(
-            codigo: codigo,
-            produtoId: Value(produtoId),
-          ));
+      db.into(db.etiquetas).insert(
+            EtiquetasCompanion.insert(codigo: codigo, produtoId: produtoId),
+          );
 
   group('gerarLoteEtiquetas', () {
     test('devolve exatamente a quantidade pedida', () async {
@@ -60,8 +58,6 @@ void main() {
       expect(salvas, hasLength(3));
       expect(salvas.every((e) => e.produtoId == id), isTrue,
           reason: 'toda etiqueta tem que apontar pro produto');
-      expect(salvas.every((e) => e.vinculado), isTrue,
-          reason: 'nao existe mais etiqueta livre');
     });
 
     test('recusa gerar para um produto que nao existe', () async {
