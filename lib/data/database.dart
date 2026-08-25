@@ -61,6 +61,24 @@ class Etiquetas extends Table {
   IntColumn get unidades => integer().withDefault(const Constant(1))();
 }
 
+/// Quadro das etiquetas de um produto, para as telas de geração.
+class ResumoEtiquetas {
+  const ResumoEtiquetas({
+    required this.disponiveis,
+    required this.usadas,
+    required this.unidadesCobertas,
+  });
+
+  /// Etiquetas geradas e ainda não consumidas.
+  final int disponiveis;
+
+  /// Etiquetas já bipadas.
+  final int usadas;
+
+  /// Soma de `unidades` das disponíveis — quanto do estoque elas cobrem.
+  final int unidadesCobertas;
+}
+
 // ---------------------------------------------------------------------------
 // Banco
 // ---------------------------------------------------------------------------
@@ -342,6 +360,31 @@ class AppDatabase extends _$AppDatabase {
       return (select(produtos)..where((p) => p.id.equals(etiqueta.produtoId)))
           .getSingle();
     });
+  }
+
+  // --- Resumo de etiquetas ---------------------------------------------
+
+  /// Quadro das etiquetas de [produtoId]: quantas estão disponíveis, quantas
+  /// já foram usadas, e quantas unidades as disponíveis cobrem.
+  ///
+  /// Uma etiqueta está disponível quando `usadaEm` é nulo. `unidadesCobertas`
+  /// é a soma de `unidades` das disponíveis — as usadas não contam, porque já
+  /// viraram baixa.
+  ///
+  /// Recusa com [VinculoInvalido] se o produto não existir.
+  Future<ResumoEtiquetas> resumoEtiquetas(int produtoId) async {
+    throw UnimplementedError('resumoEtiquetas');
+  }
+
+  /// Quanto do estoque de [produtoId] ainda não tem etiqueta.
+  ///
+  /// É `quantidadeAtual` menos as unidades já cobertas por etiqueta
+  /// disponível. Nunca devolve negativo: gerar etiqueta a mais é permitido,
+  /// mas a tela não deve receber número negativo.
+  ///
+  /// Recusa com [VinculoInvalido] se o produto não existir.
+  Future<int> unidadesSemEtiqueta(int produtoId) async {
+    throw UnimplementedError('unidadesSemEtiqueta');
   }
 
   // --- Histórico ------------------------------------------------------
