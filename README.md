@@ -17,6 +17,22 @@ conta. O backup é um arquivo JSON que você exporta e guarda onde quiser.
 Cada etiqueta vale **uma baixa só**. Bipar de novo é recusado — é o que impede
 descontar duas vezes o mesmo item.
 
+## Telas
+
+| | | |
+|---|---|---|
+| ![Menu](img/menu.png) | ![Cadastro de produto](img/cadastro.png) | ![Etiquetas do produto](img/etiquetas-do-produto.png) |
+| **Menu** — tudo em um nível só, sem gaveta nem abas. | **Cadastro** — nome, categoria e quantidade inicial. Só isso. | **Etiquetas do produto** — as usadas ficam riscadas; as disponíveis, em verde. |
+
+| | |
+|---|---|
+| ![Folha de etiquetas em PDF](img/etiquetas-pdf.png) | ![Backup](img/backup.png) |
+| **Folha de etiquetas** — vai direto para a impressão do Android, ou salva em PDF. | **Backup** — exporta um JSON e abre o compartilhamento do sistema. |
+
+Repare no print das etiquetas: convivem códigos de **1 unidade** e de **50
+unidades** no mesmo produto. A etiqueta de caixa dá baixa de 50 num bipe só —
+quem decide a quantidade é a etiqueta, não quem escaneia.
+
 ---
 
 ## Rodar em outra máquina
