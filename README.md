@@ -21,12 +21,12 @@ descontar duas vezes o mesmo item.
 
 | | | |
 |---|---|---|
-| ![Menu](img/menu.png) | ![Cadastro de produto](img/cadastro.png) | ![Etiquetas do produto](img/etiquetas-do-produto.png) |
+| <img src="img/menu.png" alt="Menu" width="260"> | <img src="img/cadastro.png" alt="Cadastro de produto" width="260"> | <img src="img/etiquetas-do-produto.png" alt="Etiquetas do produto" width="260"> |
 | **Menu** — tudo em um nível só, sem gaveta nem abas. | **Cadastro** — nome, categoria e quantidade inicial. Só isso. | **Etiquetas do produto** — as usadas ficam riscadas; as disponíveis, em verde. |
 
 | | |
 |---|---|
-| ![Folha de etiquetas em PDF](img/etiquetas-pdf.png) | ![Backup](img/backup.png) |
+| <img src="img/etiquetas-pdf.png" alt="Folha de etiquetas em PDF" width="260"> | <img src="img/backup.png" alt="Backup" width="260"> |
 | **Folha de etiquetas** — vai direto para a impressão do Android, ou salva em PDF. | **Backup** — exporta um JSON e abre o compartilhamento do sistema. |
 
 Repare no print das etiquetas: convivem códigos de **1 unidade** e de **50
