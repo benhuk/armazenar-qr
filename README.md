@@ -21,16 +21,21 @@ descontar duas vezes o mesmo item.
 
 | | | |
 |---|---|---|
-| <img src="img/menu.png" alt="Menu" width="260"> | <img src="img/cadastro.png" alt="Cadastro de produto" width="260"> | <img src="img/etiquetas-do-produto.png" alt="Etiquetas do produto" width="260"> |
-| **Menu** — tudo em um nível só, sem gaveta nem abas. | **Cadastro** — nome, categoria e quantidade inicial. Só isso. | **Etiquetas do produto** — as usadas ficam riscadas; as disponíveis, em verde. |
+| <img src="img/menu.png" width="230" alt="Menu"> | <img src="img/estoque.png" width="230" alt="Estoque com busca"> | <img src="img/cadastro.png" width="230" alt="Cadastro de produto"> |
+| **Menu** — tudo num nível só, sem gaveta nem abas. | **Estoque** — a busca filtra por nome **ou** categoria: aqui "el" achou os dois itens de Elétrica. | **Cadastro** — nome, categoria e quantidade inicial. Só isso. |
+
+| | | |
+|---|---|---|
+| <img src="img/etiquetas-por-caixa.png" width="230" alt="Gerar etiquetas por caixa"> | <img src="img/etiquetas-pdf.png" width="230" alt="Folha de etiquetas em PDF"> | <img src="img/etiquetas-do-produto.png" width="230" alt="Etiquetas do produto"> |
+| **Gerar por caixa** — o quadro responde "preciso imprimir mais?": 32 unidades ainda sem etiqueta. | **Folha pronta** — cada QR traz `12 un.` embaixo, senão a etiqueta de caixa ficaria idêntica à avulsa no papel. | **Etiquetas do produto** — disponíveis em verde, bipadas riscadas em cinza. |
 
 | | |
 |---|---|
-| <img src="img/etiquetas-pdf.png" alt="Folha de etiquetas em PDF" width="260"> | <img src="img/backup.png" alt="Backup" width="260"> |
-| **Folha de etiquetas** — vai direto para a impressão do Android, ou salva em PDF. | **Backup** — exporta um JSON e abre o compartilhamento do sistema. |
+| <img src="img/historico.png" width="230" alt="Histórico"> | <img src="img/backup.png" width="230" alt="Backup"> |
+| **Histórico** — nome do produto, data e observação. Os `-50` são baixas de etiqueta de caixa. | **Backup** — exporta um JSON e abre o compartilhamento do Android. |
 
-Repare no print das etiquetas: convivem códigos de **1 unidade** e de **50
-unidades** no mesmo produto. A etiqueta de caixa dá baixa de 50 num bipe só —
+Repare no histórico e na tela de etiquetas: convivem códigos de **1 unidade** e de
+**50 unidades** no mesmo produto. A etiqueta de caixa dá baixa de 50 num bipe só —
 quem decide a quantidade é a etiqueta, não quem escaneia.
 
 ---
