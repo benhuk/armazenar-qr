@@ -1,43 +1,37 @@
-# Estoque QR
+# Estoque QR — o app
 
-Estrutura inicial do app (o plano completo está em `plano.md`, na conversa).
+A documentação completa (instalar, rodar, gerar APK, o que subir no GitHub)
+está no [README da raiz do repositório](../README.md).
 
-## Rodar
+## Atalho
 
 ```bash
 flutter pub get
-dart run build_runner build --delete-conflicting-outputs
-flutter run
+flutter pub run build_runner build --force-jit   # gera database.g.dart
+flutter run -d <device>
 ```
 
-O `build_runner` gera `lib/data/database.g.dart`, que ainda não existe —
-sem esse passo o projeto não compila.
+O `--force-jit` não é opcional: o `sqlite3` usa build hooks, que a compilação
+AOT do build_runner não suporta.
 
-## O que já está pronto
+## Testes
 
-- Schema do banco (Drift): `produtos`, `movimentacoes`, `etiquetas`
-- Tela de Estoque — lista os produtos direto do banco (stream)
-- Tela de Gerar etiquetas — gera os códigos e monta o PDF em grade pra
-  imprimir (QR direto no PDF, sem imagem intermediária)
-- Tela de Histórico — lista as movimentações
-- Tela de Cadastro — formulário funcional, salva o produto
-- Tela de Scanner — já lê o QR e busca o produto no banco
+```bash
+flutter test     # 100 testes
+dart analyze
+```
 
-## O que falta (marcado com `// TODO` no código)
+Os testes usam banco em memória (`AppDatabase.forTesting(NativeDatabase.memory())`),
+sem tocar em disco nem no `path_provider`. Não há teste de widget: a lógica que
+importa mora na camada de dados, e é lá que ela é verificada.
 
-- No cadastro: vincular a uma etiqueta livre já impressa (ou gerar uma nova
-  na hora)
-- No scanner: modal pra confirmar a quantidade antes da baixa (hoje só
-  identifica o produto)
-- Na tela de etiquetas: tamanho/colunas configuráveis
-- No histórico: mostrar o nome do produto em vez do id
-- Backup: `lib/data/backup_service.dart` só exporta; falta importar e
-  salvar/compartilhar o arquivo
+## Ao mexer no schema
 
-## Permissões
+1. Altere a tabela em `lib/data/database.dart`
+2. Suba o `schemaVersion`
+3. Acrescente o passo em `MigrationStrategy.onUpgrade`
+4. Cubra o caminho novo em `test/migracao_test.dart`
+5. Rode o `build_runner` de novo
 
-Antes de rodar em Android/iOS, adicionar a permissão de câmera:
-
-- **Android**: `<uses-permission android:name="android.permission.CAMERA"/>`
-  em `android/app/src/main/AndroidManifest.xml`
-- **iOS**: `NSCameraUsageDescription` em `ios/Runner/Info.plist`
+A migração apaga e reescreve dados. O teste dela existe porque isso é
+irreversível no aparelho de quem já usa o app.
